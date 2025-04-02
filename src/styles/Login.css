@@ -1,0 +1,84 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-subtitle {
+  color: #8c8c8c;
+  margin-bottom: 24px;
+}
+
+.login-form-button {
+  margin-bottom: 16px;
+}
+
+.login-form-forgot {
+  float: right;
+}
+
+.login-form-register {
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* 登录标签页样式 */
+.login-tabs {
+  margin-bottom: 16px;
+}
+
+.login-tabs .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+
+/* 验证码按钮样式 */
+.verification-code-button {
+  width: 120px;
+  text-align: center;
+  padding: 0 8px;
+  font-size: 14px;
+}
+
+.demo-login {
+  text-align: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #f0f0f0;
+}
+
+.demo-login-button {
+  color: #1677ff;
+  font-size: 14px;
+}
+
+.demo-login-button:hover {
+  color: #4096ff;
+}
+
+@media (max-width: 576px) {
+  .login-card {
+    max-width: 95%;
+    margin: 0 10px;
+  }
+  
+  .verification-code-button {
+    width: 110px;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+} 

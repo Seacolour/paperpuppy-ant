@@ -1,0 +1,1245 @@
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.messages-container {
+  flex: 1;
+  position: relative;
+  height: calc(100vh - 64px); /* 减去header高度 */
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+  scrollbar-gutter: stable;
+}
+
+.chat-messages {
+  height: 100%;
+  overflow: visible;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 800px;
+  position: relative;
+  padding-bottom: 40px; /* 增加底部内边距，确保最后一条消息的按钮可见 */
+}
+
+/* 会话名称容器 */
+.session-name-container {
+  height: 64px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  position: relative;
+  z-index: 10;
+  transition: box-shadow 0.3s;
+}
+
+.session-name-container.scrolled {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.session-name {
+  margin: 0 !important;
+  padding: 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: #000000E0;
+}
+
+/* 空状态样式 */
+.chat-messages-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 64px;
+  color: #1677ff;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background-color: #f0f7ff;
+}
+
+.suggestion-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.suggestion-card {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.suggestion-card:hover {
+  background-color: rgba(245, 245, 247, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.suggestion-card .anticon {
+  font-size: 20px;
+  color: #1677ff;
+  margin-right: 12px;
+  margin-top: 2px;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 消息样式 */
+.message {
+  padding: 16px 24px;
+  display: flex;
+  position: relative;
+  font-size: 16px;
+}
+
+.user-message {
+  flex-direction: column;
+  align-items: flex-end;
+  margin-bottom: 12px; /* 为操作按钮提供空间 */
+  position: relative;
+  padding-bottom: 14px; /* 减小底部填充空间 */
+}
+
+.assistant-message {
+  justify-content: flex-start;
+  position: relative;
+  padding-left: 0;
+}
+
+.assistant-message:before {
+  display: none;
+}
+
+.message-avatar {
+  margin: 0 12px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.user-avatar {
+  background-color: #1677ff;
+}
+
+.ai-avatar {
+  background-color: #10a37f;
+}
+
+.message-content {
+  position: relative;
+  max-width: 90%;
+}
+
+.user-content {
+  background-color: #f5f5f5;
+  border-radius: 16px;
+  padding: 10px 16px;
+  color: #333;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  max-width: 90%;
+  position: relative;
+  margin-bottom: 8px; /* 为按钮留出空间 */
+}
+
+.assistant-content {
+  padding: 0 16px;
+  background-color: transparent;
+  box-shadow: none;
+  width: 100%;
+  margin: 8px 0;
+}
+
+/* 修改气泡相关样式 */
+.assistant-content .message-bubble,
+.assistant-content .bubble-content,
+.assistant-content .dyn-typing-bubble,
+.assistant-content .dyn-typing-bubble-container,
+.assistant-content .dyn-typing-bubble-message {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+
+.assistant-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15px;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  box-shadow: none;
+}
+
+.message-role {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.message-body {
+  line-height: 1.8;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  width: 100%;
+}
+
+.user-text {
+  white-space: pre-wrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.assistant-text h1,
+.assistant-text h2,
+.assistant-text h3,
+.assistant-text h4,
+.assistant-text h5,
+.assistant-text h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.assistant-text h1 {
+  font-size: 1.75em;
+}
+
+.assistant-text h2 {
+  font-size: 1.5em;
+}
+
+.assistant-text h3 {
+  font-size: 1.25em;
+}
+
+.assistant-text p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.assistant-text ul,
+.assistant-text ol {
+  padding-left: 2em;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.assistant-text li {
+  margin-bottom: 0.5em;
+}
+
+.assistant-text li > ul,
+.assistant-text li > ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.assistant-text code {
+  background-color: rgba(175, 184, 193, 0.2);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-size: 85%;
+}
+
+.assistant-text pre {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.assistant-text pre > code {
+  background-color: transparent;
+  padding: 0;
+  font-size: 90%;
+  white-space: pre;
+  line-height: 1.5;
+  display: block;
+}
+
+.assistant-text blockquote {
+  border-left: 3px solid #ddd;
+  padding-left: 1em;
+  color: #57606a;
+  margin: 1em 0;
+}
+
+.assistant-text table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  display: block;
+  overflow-x: auto;
+}
+
+.assistant-text table th,
+.assistant-text table td {
+  border: 1px solid #d0d7de;
+  padding: 8px 12px;
+}
+
+.assistant-text table th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+.assistant-text img {
+  max-width: 100%;
+  height: auto;
+  margin: 1em 0;
+  border-radius: 6px;
+}
+
+.assistant-text a {
+  color: #0969da;
+  text-decoration: none;
+}
+
+.assistant-text a:hover {
+  text-decoration: underline;
+}
+
+.assistant-text hr {
+  height: 1px;
+  background-color: #d0d7de;
+  border: none;
+  margin: 1.5em 0;
+}
+
+.markdown-paragraph {
+  margin: 0.8em 0;
+  white-space: pre-wrap;
+}
+
+/* 代码块样式 */
+.code-block-wrapper {
+  margin: 16px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #282c34;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #21252b;
+}
+
+.code-block-header .ant-tag {
+  margin-right: 0;
+  background-color: #3e4451;
+  border: none;
+}
+
+.code-content-wrapper {
+  max-height: 400px;
+  overflow: auto;
+}
+
+.code-content-wrapper pre {
+  margin: 0 !important;
+  padding: 16px !important;
+}
+
+.user-message .code-block-wrapper {
+  background-color: #1e1e1e;
+  border-color: #333;
+}
+
+.user-message .code-block-header {
+  background-color: #2a2a2a;
+  border-bottom-color: #333;
+}
+
+.message-body code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.user-message .message-body code {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 消息操作按钮 */
+.message-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 15; /* 确保按钮在最上层 */
+}
+
+.assistant-actions {
+  margin-top: 8px;
+  justify-content: flex-start;
+  padding-left: 2px;
+  margin-top: 16px;
+}
+
+.user-actions {
+  justify-content: flex-end;
+  padding-right: 2px;
+  position: relative;
+  right: 0;
+}
+
+.message-content:hover .message-actions {
+  opacity: 1;
+}
+
+.copied {
+  color: #52c41a !important;
+}
+
+/* 加载中动画 */
+.typing-animation {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  border-radius: 50%;
+  background-color: #666;
+  animation: typing-dot-bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing-dot-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.messages-end-anchor {
+  height: 40px; /* 增加高度 */
+  width: 100%;
+  margin-bottom: 0;
+}
+
+/* Markdown 元素样式 */
+.assistant-content ul, 
+.assistant-content ol {
+  margin: 16px 0;
+  padding-left: 24px;
+}
+
+.assistant-content li {
+  margin-bottom: 8px;
+}
+
+.assistant-content h1,
+.assistant-content h2,
+.assistant-content h3,
+.assistant-content h4 {
+  margin: 24px 0 16px;
+  font-weight: 600;
+}
+
+.assistant-content h1 {
+  font-size: 1.75em;
+}
+
+.assistant-content h2 {
+  font-size: 1.5em;
+}
+
+.assistant-content h3 {
+  font-size: 1.25em;
+}
+
+.assistant-content blockquote {
+  border-left: 3px solid #ddd;
+  margin: 16px 0;
+  padding-left: 16px;
+  color: #555;
+}
+
+.assistant-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  display: block;
+  overflow-x: auto;
+  white-space: normal;
+}
+
+.assistant-content th,
+.assistant-content td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+  min-width: 100px;
+}
+
+.assistant-content th {
+  background-color: #f5f5f7;
+  font-weight: 600;
+}
+
+/* 图片样式 */
+.assistant-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 16px 0;
+  border-radius: 4px;
+}
+
+/* 代码样式优化 */
+.assistant-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.assistant-content code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+/* 强制所有内容元素限制宽度 */
+.assistant-content img,
+.assistant-content pre,
+.assistant-content blockquote,
+.assistant-content p {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 滚动条样式 */
+.messages-container::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.messages-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .chat-messages {
+    max-width: 750px;
+  }
+}
+
+@media (max-width: 992px) {
+  .chat-messages {
+    max-width: 650px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-messages {
+    max-width: 100%;
+    padding: 0 16px;
+  }
+  
+  .session-name-container {
+    padding: 0 16px;
+  }
+  
+  .message {
+    padding: 12px 16px;
+  }
+}
+
+/* 调整内联代码样式 */
+.message-body code:not(.code-block-wrapper code) {
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+/* 修改文件附件样式，使其悬挂在消息气泡上方 */
+.user-message {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.user-message .message-files-container {
+  margin-bottom: 8px;
+  width: auto;
+  max-width: 90%;
+}
+
+/* 文件附件独立的样式 */
+.message-file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 12px;
+  max-width: fit-content;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin-bottom: 0;
+}
+
+.message-file-item:hover {
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+}
+
+/* PDF文件特殊样式 */
+.message-file-icon.message-file-pdf {
+  background-color: #ff4d4f;
+  color: white;
+}
+
+/* 图片预览缩略图 */
+.message-file-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+  margin-right: 10px;
+  overflow: hidden;
+}
+
+/* 消息文件容器 */
+.message-files-container {
+  display: flex;
+  flex-direction: row; /* 改为行式布局 */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  max-width: 100%;
+}
+
+/* 必要的重设，确保消息气泡在文件下方 */
+.user-message .message-content {
+  margin-top: 0;
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.message-file-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message-file-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.message-file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.message-file-size {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+  .message-file-name {
+    max-width: 120px;
+  }
+}
+
+/* 文件类型图标样式 */
+.file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.file-icon.excel-file {
+  background-color: #e6f7e6;
+  color: #52c41a;
+}
+
+.file-icon.word-file {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+.file-icon.pdf-file {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+}
+
+.file-icon.image-file {
+  background-color: #f2f2f2;
+  color: #666;
+}
+
+/* 新的文件样式，类似Ant Design X的Bubble组件 */
+.message-file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  max-width: 320px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  border: 1px solid #e8e8e8;
+}
+
+.message-file-item:hover {
+  background-color: #e6f7ff;
+  border-color: #91d5ff;
+}
+
+.message-file-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 20px;
+  overflow: hidden;
+}
+
+.message-file-icon.message-file-pdf {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+}
+
+.message-file-icon.message-file-image {
+  border: 1px solid #f0f0f0;
+  background-color: transparent;
+}
+
+.message-file-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message-file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-file-size {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* 文件进度条样式 */
+.file-progress {
+  height: 2px;
+  background-color: #e6e6e6;
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.file-progress-inner {
+  height: 100%;
+  background-color: #1890ff;
+  transition: width 0.3s;
+}
+
+/* 适配消息容器 */
+.user-message .message-files-container {
+  align-items: flex-end;
+}
+
+.assistant-message .message-files-container {
+  align-items: flex-start;
+}
+
+/* 调整Markdown元素的字体大小 */
+.assistant-content p,
+.assistant-content li,
+.assistant-content blockquote {
+  font-size: 16px;
+}
+
+/* 用户消息内部的按钮容器样式 */
+.user-message-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.user-message-actions {
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.2s;
+  justify-content: flex-end;
+  padding-right: 2px;
+  margin-top: 4px;
+}
+
+.user-message-container:hover .user-message-actions,
+.user-message-actions:hover {
+  opacity: 1;
+}
+
+/* 新的气泡样式 */
+.message-bubble {
+  margin-bottom: 4px;
+  max-width: 100%;
+}
+
+.bubble-content {
+  background-color: #f5f5f5;
+  border-radius: 16px;
+  padding: 10px 16px;
+  color: #333;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  max-width: 100%;
+  position: relative;
+}
+
+.user-content .bubble-content {
+  background-color: #f5f5f5;
+}
+
+/* 气泡底部按钮样式 */
+.bubble-footer {
+  display: flex;
+  padding: 4px 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.user-content .bubble-footer {
+  justify-content: flex-end;
+}
+
+.assistant-content .bubble-footer {
+  justify-content: flex-start;
+  padding-left: 0;
+}
+
+.message-content:hover .bubble-footer {
+  opacity: 1;
+}
+
+.user-content, .assistant-content {
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* 确保AI消息区域有足够的宽度 */
+.assistant-message .message-content {
+  max-width: 100%;
+  width: 100%;
+}
+
+/* 添加细微的过渡效果 */
+.message-bubble, 
+.bubble-content, 
+.bubble-footer button,
+.assistant-text a {
+  transition: all 0.2s ease;
+}
+
+/* KaTeX公式样式优化 */
+.katex-display {
+  margin: 12px 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 16px !important;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  text-align: center;
+  max-width: 100%;
+}
+
+/* 行内公式样式 */
+.katex {
+  font-size: 1.1em !important;
+  line-height: 1.4;
+}
+
+/* 列表项中的公式样式 */
+.assistant-content ol > li .katex-display {
+  margin: 8px 0 !important;
+  width: calc(100% - 8px) !important;
+}
+
+/* 公式内部元素对齐 */
+.katex-display > .katex {
+  display: block;
+  text-align: center;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 auto;
+}
+
+/* 修复公式超出边界问题 */
+.katex-html {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 适配小屏幕 */
+@media (max-width: 768px) {
+  .katex-display {
+    font-size: 0.95em;
+    padding: 6px 8px !important;
+  }
+}
+
+/* 物理符号特别样式 */
+.katex .mord.mathnormal.hbar,
+.katex .mord.mathrm {
+  margin-right: 0.1em;
+}
+
+/* 数学公式样式 */
+.math-block-wrapper {
+  display: block;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+.math-inline-wrapper {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.paragraph-with-math {
+  margin: 1em 0;
+}
+
+.math-error {
+  color: #ff4d4f;
+  padding: 4px 8px;
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+}
+
+/* 确保katex公式显示正确 */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5em 0;
+}
+
+.katex {
+  font-size: 1.1em;
+}
+
+.plain-text-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15px;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  box-shadow: none;
+}
+
+/* Bubble组件样式优化 */
+.assistant-bubble {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+.assistant-bubble .dyn-typing-bubble-message,
+.assistant-bubble .dyn-typing-bubble-container {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  border: none !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* 确保打字过程中高度稳定 */
+.typing-message .assistant-text {
+  min-height: 24px;
+}
+
+/* 修复Bubble组件隐藏显示过渡 */
+.dyn-typing-bubble-enter-active {
+  transition: none !important;
+}
+.dyn-typing-bubble-exit-active {
+  transition: none !important;
+}
+
+/* 优化数学公式相关样式 */
+.katex-display {
+  margin: 0.8em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* 调整有序列表和无序列表项目样式 */
+.assistant-content ol,
+.assistant-content ul {
+  margin: 0.8em 0;
+  padding-left: 2em;
+  list-style-position: outside;
+}
+
+.assistant-content li {
+  margin: 0.5em 0;
+  display: list-item;
+  padding-left: 0.3em;
+}
+
+/* 修复列表项内的公式偏移问题 */
+.assistant-content li .katex-display {
+  margin: 0.5em 0 !important;
+  max-width: calc(100% - 1em);
+}
+
+/* 确保列表数字和内容对齐 */
+.assistant-content ol {
+  list-style-type: decimal;
+  counter-reset: item;
+}
+
+/* 确保公式在小屏幕上也能完整显示 */
+@media (max-width: 768px) {
+  .katex-display {
+    font-size: 14px;
+  }
+}
+
+/* 进一步优化数学公式样式 */
+.katex-display {
+  margin: 0.8em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* 深度修复列表项样式 */
+.assistant-content ol {
+  list-style: none !important;
+  counter-reset: item;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+.assistant-content ol > li {
+  position: relative !important;
+  padding-left: 2.5em !important;
+  margin: 1em 0 !important;
+  display: block !important;
+  line-height: 1.5;
+}
+
+.assistant-content ol > li::before {
+  content: counter(item) ".";
+  counter-increment: item;
+  position: absolute !important;
+  left: 0;
+  top: 0;
+  font-weight: bold;
+  width: 2em;
+  text-align: right;
+  padding-right: 0.5em;
+}
+
+/* 确保列表项内部元素不错位 */
+.assistant-content li p {
+  margin: 0.5em 0;
+  display: block;
+}
+
+/* 公式在列表项内的对齐 */
+.assistant-content li .katex-display {
+  margin: 0.5em 0 !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* 针对带括号的表达式的特殊处理 */
+.assistant-content li p:first-of-type + .katex-display {
+  margin-top: 0.3em !important;
+}
+
+.assistant-content li .katex-display + p {
+  margin-top: 0.3em;
+}
+
+/* 确保列表项标题与序号之间的正确对齐 */
+.assistant-content ol li p:first-child {
+  margin-top: 0;
+  display: inline-block;
+}
+
+/* 调整公式在列表项内的对齐方式 */
+.assistant-content li .katex-display {
+  margin: 0.5em 0 !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* 确保公式在小屏幕上也能完整显示 */
+@media (max-width: 768px) {
+  .katex-display {
+    font-size: 14px;
+  }
+}
+
+/* 为纯文本显示添加样式 */
+.text-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.text-line {
+  min-height: 1.2em;
+  margin: 0.4em 0;
+}
+
+.text-line:empty {
+  height: 1em;
+}
+
+/* 移除空白段落中的额外空间 */
+.text-line:empty + .text-line:empty {
+  margin-top: 0;
+}
+
+/* 确保连续空行不会导致过多的空白 */
+.text-line:empty:last-child {
+  margin-bottom: 0;
+} 

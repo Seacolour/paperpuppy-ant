@@ -1,0 +1,257 @@
+.chat-page {
+  height: 100vh;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ant-layout {
+  background-color: #fff;
+  width: 100%;
+  transition: margin-left 0.3s ease;
+}
+
+.chat-sidebar {
+  height: 100%;
+  overflow: hidden;
+  box-shadow: none;
+  border-right: 1px solid rgba(0, 0, 0, 0.03);
+  z-index: 1;
+  background-color: #fff;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.chat-content {
+  height: 100vh;
+  display: flex;
+  flex: 1;
+  background-color: #ffffff;
+  position: relative;
+  z-index: 1;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+}
+
+.toggle-sidebar-button {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+}
+
+.chat-messages-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 130px; /* 增加底部空间，避免消息被输入框遮挡 */
+}
+
+.chat-input-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  padding: 0 16px 8px;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .chat-sidebar {
+    width: 250px !important;
+    min-width: 250px !important;
+    max-width: 250px !important;
+  }
+  
+  .chat-input-wrapper {
+    padding: 0 12px 8px;
+  }
+}
+
+@media (max-width: 576px) {
+  .chat-page {
+    position: relative;
+  }
+  
+  .chat-sidebar {
+    position: absolute;
+    left: -300px;
+    transition: left 0.3s ease;
+    z-index: 100;
+    height: 100vh;
+  }
+  
+  .chat-sidebar.visible {
+    left: 0;
+  }
+  
+  .header-action-btn {
+    margin: 0 2px;
+  }
+}
+
+/* 文件预览模态框样式 */
+.file-preview-modal .ant-modal-body {
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.file-preview-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.file-preview-image-container img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.file-preview-pdf-container {
+  width: 100%;
+  height: 650px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-viewer {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background-color: #f9f9f9;
+}
+
+.file-preview-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.file-preview-icon {
+  margin-bottom: 16px;
+}
+
+.file-preview-name {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-align: center;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-preview-size {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+/* 响应式调整 */
+@media (max-height: 900px) {
+  .file-preview-pdf-container {
+    height: 500px;
+  }
+}
+
+@media (max-height: 700px) {
+  .file-preview-pdf-container {
+    height: 400px;
+  }
+}
+
+/* 文件图标颜色 */
+.message-file-pdf .anticon {
+  color: #ff4d4f;
+}
+
+/* 侧边栏切换按钮统一样式 */
+.sidebar-toggle,
+.sidebar-collapse-button {
+  font-size: 16px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  margin-right: 0;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.sidebar-toggle:hover,
+.sidebar-collapse-button:hover {
+  background: rgba(0, 0, 0, 0.03);
+  color: #1677ff;
+}
+
+/* 调整会话标题容器，为按钮组留出空间 */
+.session-name-container {
+  padding-left: 95px !important; /* 增加左侧padding确保不遮挡按钮组 */
+  display: flex;
+  align-items: center;
+}
+
+.session-name {
+  margin-bottom: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 优化侧边栏动画 */
+.ant-layout-sider {
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.content-layout {
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.with-sidebar {
+  margin-left: 0;
+}
+
+/* 侧边栏内部的折叠按钮容器 */
+.sidebar-toggle-button {
+  margin-right: 4px;
+  display: flex;
+  align-items: center;
+}
+
+/* 收缩侧边栏后的按钮组样式 */
+.collapsed-sidebar-buttons {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+} 
