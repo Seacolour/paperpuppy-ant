@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Spin, Typography, Space } from 'antd';
 import { DownloadOutlined, ExpandOutlined, CloseOutlined } from '@ant-design/icons';
-import { FileManager } from '../utils/FileManager';
+import FileManager from '../utils/FileManager';
 import '../styles/FilePreviewModal.css';
 
 const { Text, Title } = Typography;
@@ -33,8 +33,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ fileId, visible, on
         if (file.type.startsWith('image/')) {
           // 图片文件
           setPreviewUrl(file.url);
-        } else if (file.type === 'application/pdf') {
-          // PDF文件
+        } else if (file.type === 'pdf') {
+          // PDF文件 
           setPreviewUrl(file.url);
         } else {
           // 其他类型文件，没有内置预览

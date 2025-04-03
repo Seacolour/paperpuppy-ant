@@ -13,7 +13,8 @@ import {
   addSession, 
   setActiveSessionId,
   updateSession,
-  ChatSession 
+  ChatSession,
+  setSessions  
 } from '../store/sessionSlice';
 import { 
   addUserMessage, 
@@ -24,10 +25,11 @@ import {
   Message
 } from '../store/messageSlice';
 import { useAppSelector } from '../store';
-import { sendMessageRpcUsingPost } from '../api/sessionController';
+import { sendMessageRpcUsingPost, getSessionsUsingGet } from '../api/sessionController';
 import { v4 as uuidv4 } from 'uuid';
 import { SessionAPI } from '../utils/api-helper';
 import FilePreviewModal from './FilePreviewModal';
+import { useStreamMessage } from '../hooks/useStreamMessage';
 
 const { Sider, Content } = Layout;
 const { Text } = Typography;
@@ -116,8 +118,7 @@ const ChatPage: React.FC = () => {
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
-  const [streamedContent, setStreamedContent] = useState<string>('');
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const { streamContent: streamedContent, isProcessing, processStream, cancelGeneration } = useStreamMessage(activeSessionId);
 
   // 获取文件管理器实例
   const fileManager = FileManager.getInstance();
@@ -128,7 +129,8 @@ const ChatPage: React.FC = () => {
   // 初始化消息
   useEffect(() => {
     // 如果Redux store中没有消息，从初始数据加载
-    if (Object.keys(allMessages).length === 0) {
+    // 只有在没有从后端加载到会话的情况下才使用初始示例数据
+    if (Object.keys(allMessages).length === 0 && sessionData.length === 0) {
       // 将初始消息加载到Redux
       Object.keys(initialMessages).forEach(sessionKey => {
         const sessionId = parseInt(sessionKey);
@@ -141,7 +143,115 @@ const ChatPage: React.FC = () => {
         });
       });
     }
-  }, [dispatch, allMessages]);
+  }, [dispatch, allMessages, sessionData]);
+
+  // 从后端加载历史会话
+  useEffect(() => {
+    // 添加一个标志，防止重复加载
+    const sessionDataFromLocalStorage = localStorage.getItem('chatSessions');
+    const hasLoadedFromBackend = localStorage.getItem('hasLoadedSessionsFromBackend');
+    
+    // 如果没有从后端加载过会话，并且本地存储中没有会话数据或会话数据为空数组，则从后端加载
+    if (!hasLoadedFromBackend && (!sessionDataFromLocalStorage || sessionDataFromLocalStorage === '[]')) {
+      const fetchHistorySessions = async () => {
+        try {
+          const response = await getSessionsUsingGet();
+          if (response && response.data && response.data.code === 0 && response.data.data) {
+            const backendSessions = response.data.data;
+            
+            // 将后端会话转换为前端会话格式
+            const convertedSessions: ChatSession[] = backendSessions.map(session => {
+              // 确保ID是number类型
+              const sessionId = session.id ? Number(session.id) : Date.now();
+              
+              return {
+                id: sessionId,
+                name: session.sessionName || "未命名会话",
+                backendSessionId: sessionId, // 保存后端会话ID
+                lastMessage: "点击加载消息", // 默认提示
+                timestamp: session.updateTime ? new Date(session.updateTime).toLocaleString() : "未知时间",
+                group: getSessionGroup(session.updateTime)
+              };
+            });
+            
+            // 对会话进行排序 - 按更新时间降序
+            const sortedSessions = convertedSessions.sort((a, b) => {
+              const timeA = a.timestamp && a.timestamp !== "未知时间" ? new Date(a.timestamp).getTime() : 0;
+              const timeB = b.timestamp && b.timestamp !== "未知时间" ? new Date(b.timestamp).getTime() : 0;
+              return timeB - timeA;
+            });
+            
+            // 检查本地是否已有会话，如果有则合并保留用户本地设置的星标和置顶状态
+            const localSessions = sessionData;
+            
+            if (localSessions && localSessions.length > 0) {
+              // 合并本地和远程会话，保留本地设置的星标和置顶状态
+              const mergedSessions = sortedSessions.map(session => {
+                const localSession = localSessions.find(local => local.backendSessionId === session.backendSessionId);
+                if (localSession) {
+                  return {
+                    ...session,
+                    pinned: localSession.pinned,
+                    starred: localSession.starred
+                  };
+                }
+                return session;
+              });
+              
+              dispatch(setSessions(mergedSessions));
+            } else {
+              // 直接设置后端获取的会话
+              dispatch(setSessions(sortedSessions));
+            }
+            
+            // 如果有会话，设置第一个为活动会话（除非已有活动会话）
+            if (sortedSessions.length > 0 && !activeSessionId) {
+              dispatch(setActiveSessionId(sortedSessions[0].id));
+            }
+          }
+          
+          // 在成功加载后设置标志，以防重复加载
+          localStorage.setItem('hasLoadedSessionsFromBackend', 'true');
+          
+        } catch (error) {
+          console.error('获取历史会话失败:', error);
+          message.error('获取历史会话失败，将使用本地缓存');
+        }
+      };
+      
+      // 辅助函数：获取会话分组（今天、昨天、本周、更早）
+      const getSessionGroup = (updateTime?: string): string => {
+        if (!updateTime) return '未知';
+        
+        const sessionDate = new Date(updateTime);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        // 今天
+        if (sessionDate.toDateString() === today.toDateString()) {
+          return '今天';
+        }
+        
+        // 昨天
+        if (sessionDate.toDateString() === yesterday.toDateString()) {
+          return '昨天';
+        }
+        
+        // 本周（过去7天）
+        const oneWeekAgo = new Date(today);
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        if (sessionDate >= oneWeekAgo) {
+          return '本周';
+        }
+        
+        // 更早
+        return '更早';
+      };
+      
+      fetchHistorySessions();
+    }
+  }, [dispatch, sessionData, activeSessionId]);
 
   // 处理侧边栏切换
   const toggleSidebar = () => {
@@ -149,8 +259,63 @@ const ChatPage: React.FC = () => {
   };
 
   // 处理会话选择
-  const handleSelectSession = (sessionId: number) => {
+  const handleSelectSession = async (sessionId: number) => {
     dispatch(setActiveSessionId(sessionId));
+    
+    // 获取当前会话信息
+    const selectedSession = sessionData.find(s => s.id === sessionId);
+    
+    // 如果存在后端会话ID，尝试获取历史消息
+    if (selectedSession?.backendSessionId) {
+      try {
+        // 检查是否已经加载过这个会话的消息
+        const sessionMessages = allMessages[sessionId] || [];
+        
+        // 如果会话消息为空，尝试从后端获取
+        if (sessionMessages.length === 0) {
+          // 显示加载状态
+          dispatch(setMessageLoading(true));
+          
+          // 从后端获取会话消息
+          const messages = await SessionAPI.getSessionMessages(selectedSession.backendSessionId);
+          
+          if (messages && messages.length > 0) {
+            // 转换为前端消息格式并添加到Redux
+            messages.forEach(msg => {
+              const message: Message = {
+                id: `backend-${msg.id}`,
+                content: msg.content,
+                role: msg.role,
+                timestamp: msg.createTime
+              };
+              
+              if (msg.role === 'user') {
+                dispatch(addUserMessage({ sessionId, message }));
+              } else {
+                dispatch(addAssistantMessage({ sessionId, message }));
+              }
+            });
+            
+            // 更新会话的最后消息
+            if (messages.length > 0) {
+              const lastMsg = messages[messages.length - 1];
+              dispatch(updateSession({
+                ...selectedSession,
+                lastMessage: lastMsg.content.substring(0, 30) + (lastMsg.content.length > 30 ? '...' : '')
+              }));
+            }
+          }
+          
+          // 关闭加载状态
+          dispatch(setMessageLoading(false));
+        }
+      } catch (error) {
+        console.error('加载会话消息失败:', error);
+        message.error('无法加载历史消息');
+        dispatch(setMessageLoading(false));
+      }
+    }
+    
     // 只在移动端自动隐藏侧边栏
     if (isMobile) {
       setCollapsed(true);
@@ -166,15 +331,8 @@ const ChatPage: React.FC = () => {
   }) => {
     if (!content.trim() && (!options?.fileIds || options.fileIds.length === 0)) return;
     
-    // 关闭之前可能存在的EventSource连接
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
+    // 流处理在useStreamMessage钩子中已处理
     
-    // 在发送新消息前先重置流内容
-    setStreamedContent('');
-
     // 创建并添加用户消息
     const userMessage: Message = {
       id: uuidv4(),
@@ -262,9 +420,6 @@ const ChatPage: React.FC = () => {
     try {
       console.log('开始向会话ID发送消息:', sessionId);
       
-      // 重置流内容
-      setStreamedContent('');
-      
       // 创建FormData对象
       const formData = new FormData();
       
@@ -295,129 +450,14 @@ const ChatPage: React.FC = () => {
       const sseUrl = `http://localhost:8101/api/sessions/${sessionId}/sendRPC`;
       console.log('准备发送POST请求，URL:', sseUrl);
       
-      // 发送POST请求并直接处理响应流
-      const fetchResponse = await fetch(sseUrl, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-        headers: {
-          'Accept': 'text/event-stream',
-          'Authorization': `Bearer ${localStorage.getItem('userToken') || ''}`
+      // 使用新的流处理钩子处理请求
+      await processStream(sseUrl, formData, {
+        sessionId: activeSessionId || 0,
+        onError: (error) => {
+          console.error('流处理错误:', error);
+          message.error('发送消息失败: ' + error.message);
         }
       });
-      
-      if (!fetchResponse.ok) {
-        throw new Error(`HTTP错误: ${fetchResponse.status}`);
-      }
-      
-      console.log('POST请求成功，状态:', fetchResponse.status);
-      
-      // 获取响应的可读流
-      const reader = fetchResponse.body?.getReader();
-      const decoder = new TextDecoder();
-      
-      if (!reader) {
-        throw new Error('无法读取响应流');
-      }
-      
-      console.log('开始读取响应流...');
-      
-      let streamContent = '';
-      
-      // 添加防抖处理，避免过于频繁的状态更新
-      const debounceDelay = 150; // 设置一个合理的延迟时间，单位毫秒
-      const updateStreamContent = (() => {
-        let timeoutId: NodeJS.Timeout | null = null;
-        
-        return (content: string) => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          
-          timeoutId = setTimeout(() => {
-            setStreamedContent(content);
-            timeoutId = null;
-          }, debounceDelay);
-        };
-      })();
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        // 如果流结束
-        if (done) {
-          console.log('读取流结束');
-          break;
-        }
-        
-        const text = decoder.decode(value, { stream: true });
-        let hasNewContent = false;
-        let newContentToAdd = '';
-        
-        // 检查是否返回了错误信息
-        if (text.includes('error') || text.includes('Error')) {
-          console.error('服务器返回错误:', text);
-          throw new Error('API返回错误: ' + text);
-        }
-        
-        // 按行处理返回的数据
-        const lines = text.split('\n');
-        
-        // 累积新内容
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            // 提取data:后面的内容
-            let data = line.substring(5).trim();
-            
-            // 如果数据以单引号开头和结尾，去掉单引号
-            if (data.startsWith("'") && data.endsWith("'")) {
-              data = data.substring(1, data.length - 1);
-            }
-            
-            // 只处理非空数据并且不是事件标记
-            if (data && !data.includes('event:close') && !data.includes('Connection closed')) {
-              // 只有在数据非空时才添加
-              if (data.trim()) {
-                newContentToAdd += data;
-                hasNewContent = true;
-              }
-            }
-          }
-        }
-        
-        // 只有在有新内容时才更新状态，减少不必要的渲染
-        if (hasNewContent) {
-          streamContent += newContentToAdd;
-          updateStreamContent(streamContent);
-        }
-      }
-      
-      console.log('流式传输完成，最终内容长度:', streamContent.length);
-      
-      // 创建助手消息对象
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        content: streamContent,
-        role: 'assistant',
-        timestamp: new Date().toISOString(),
-      };
-      
-      // 添加到会话
-      dispatch(addAssistantMessage({ 
-        sessionId: activeSessionId || 0, 
-        message: assistantMessage
-      }));
-      
-      // 更新加载状态
-      dispatch(setMessageLoading(false));
-      
-      // 清理读取器
-      reader.releaseLock();
-      
-      // 延迟清空流内容，确保视图已完全更新
-      setTimeout(() => {
-        setStreamedContent('');
-      }, 500);
       
     } catch (error) {
       console.error('发送消息到会话失败:', error);
@@ -425,16 +465,6 @@ const ChatPage: React.FC = () => {
       dispatch(setMessageLoading(false));
     }
   };
-
-  // 清理函数，确保组件卸载时关闭EventSource连接
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-    };
-  }, []);
 
   // 清除当前会话的消息
   const clearCurrentSessionMessages = () => {
@@ -445,17 +475,24 @@ const ChatPage: React.FC = () => {
   // 处理退出登录
   const handleLogout = async () => {
     try {
-      // 调用登出API
-      await UserAPI.logout();
-      // 移除可能存在的token
-      localStorage.removeItem('userToken');
-      sessionStorage.removeItem('userInfo');
-      message.success('已退出登录');
-      // 使用replace方式跳转到登录页
-      window.location.replace('/login');
+      const success = await UserAPI.logout();
+      if (success) {
+        // 清除会话加载标志
+        localStorage.removeItem('hasLoadedSessionsFromBackend');
+        
+        // 清除其他数据
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('chatSessions');
+        localStorage.removeItem('activeSessionId');
+        
+        // 刷新页面，强制重新加载应用
+        window.location.href = '/login';
+      } else {
+        message.error('登出失败，请重试');
+      }
     } catch (error) {
-      console.error('登出失败:', error);
-      message.error('登出失败，请稍后重试');
+      console.error('登出过程中出错:', error);
+      message.error('登出失败，请重试');
     }
   };
 
@@ -656,6 +693,7 @@ const ChatPage: React.FC = () => {
                 sessionName={getCurrentSessionName()}
                 onPreviewFile={handlePreviewFile}
                 streamContent={streamedContent}
+                onCancelGeneration={cancelGeneration}
               />
             </div>
             <div className="chat-input-wrapper">
