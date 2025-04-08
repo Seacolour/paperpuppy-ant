@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from "@/libs/request";
+import request from "../libs/request";
 
 /** submitTranslationTask POST /api/api/translate/word */
 export async function submitTranslationTaskUsingPost(

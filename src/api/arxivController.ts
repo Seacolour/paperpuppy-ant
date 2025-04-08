@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from "@/libs/request";
+import request from "../libs/request";
 
 /** getUserAllPaperInfos GET /api/arxiv/getUserAllPaperInfos */
 export async function getUserAllPaperInfosUsingGet(options?: {

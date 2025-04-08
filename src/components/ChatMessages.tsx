@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, memo } from 'react';
+import React, { useRef, useEffect, useState, memo, useMemo } from 'react';
 import { Typography, Avatar, Spin, Empty, Button, Tooltip, Space, Tag, Divider } from 'antd';
 import { UserOutlined, RobotOutlined, CopyOutlined, LikeOutlined, DislikeOutlined, MessageOutlined, SendOutlined, ThunderboltOutlined, MoreOutlined, PictureOutlined, QuestionCircleOutlined, FilePdfOutlined, FileOutlined, StopOutlined } from '@ant-design/icons';
 import FileManager, { FileEntity } from '../utils/FileManager';
@@ -398,8 +398,10 @@ const AssistantMessage = memo(({
     contentToRender = "内容加载中...";
   }
 
-  // 检查内容是否包含复杂公式
-  const hasComplexMath = containsComplexMath(contentToRender);
+  // 使用useMemo检查内容是否包含复杂公式，避免每次渲染都重新计算
+  const hasComplexMath = useMemo(() => {
+    return containsComplexMath(contentToRender);
+  }, [contentToRender]);
 
   return (
     <div className="assistant-content">
@@ -410,14 +412,16 @@ const AssistantMessage = memo(({
         ) : (
           // 对于普通内容，使用ReactMarkdown
           <div className="markdown-content">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[[rehypeKatex, { 
-                strict: false,
-                throwOnError: false,
-                trust: true
-              }]]}
-              components={{
+            {useMemo(() => (
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[[rehypeKatex, { 
+                  strict: false,
+                  throwOnError: false,
+                  trust: true
+                }]]}
+                key={`markdown-${message.id}-${loading ? 'loading' : 'complete'}`}
+                components={{
                 code({node, inline, className, children, ...props}: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline ? (
@@ -438,6 +442,7 @@ const AssistantMessage = memo(({
             >
               {contentToRender}
             </ReactMarkdown>
+            ), [contentToRender, message.id, loading])}
             {isLastAssistantMessage && loading && <TypingCursor />}
           </div>
         )}

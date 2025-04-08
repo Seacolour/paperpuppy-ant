@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Layout, message, Button, Avatar, Typography, Dropdown, Menu, Modal } from 'antd';
-import { MenuUnfoldOutlined, MenuFoldOutlined, UserOutlined, SettingOutlined, QuestionCircleOutlined, LogoutOutlined, PlusOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Layout, message, Button, Modal } from 'antd';
+import { MenuUnfoldOutlined, PlusOutlined } from '@ant-design/icons';
 import Sidebar from './Sidebar';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
-import { UserAPI } from '../utils/api-helper';
+// 导入SessionAPI用于流式消息传输，这是Swagger生成的API无法满足的功能
+import { SessionAPI } from '../utils/api-helper';
 import FileManager from '../utils/FileManager';
 import '../styles/ChatPage.css';
 import { useDispatch } from 'react-redux';
@@ -25,87 +25,23 @@ import {
   Message
 } from '../store/messageSlice';
 import { useAppSelector } from '../store';
-import { sendMessageRpcUsingPost, getSessionsUsingGet } from '../api/sessionController';
+import { 
+  getSessionsUsingGet, 
+  createSessionUsingPost, 
+  getSessionMessagesUsingGet,
+  getSessionByIdUsingGet,
+  getSessionMessagesByTimeStampUsingGet
+} from '../api/sessionController';
+import { userLogoutUsingPost } from '../api/userController';
 import { v4 as uuidv4 } from 'uuid';
-import { SessionAPI } from '../utils/api-helper';
-import FilePreviewModal from './FilePreviewModal';
+// 导入文件预览模态框组件（如需使用请取消注释）
+// import FilePreviewModal from './FilePreviewModal';
 import { useStreamMessage } from '../hooks/useStreamMessage';
 
 const { Sider, Content } = Layout;
-const { Text } = Typography;
 
-// 本地存储键名
-const MESSAGES_STORAGE_KEY = 'paperpuppy_messages';
-
-// 模拟聊天消息数据
-const initialMessages: Record<number, Message[]> = {
-  1: [
-    {
-      id: '1',
-      content: '你好，我正在研究深度学习在自然语言处理中的应用，能否帮我解释一下Transformer模型的核心机制？',
-      role: 'user',
-      timestamp: new Date(2023, 2, 20, 14, 30).toISOString()
-    },
-    {
-      id: '2',
-      content: `Transformer模型的核心机制主要包括以下几个部分：
-
-1. **自注意力机制（Self-Attention）**：允许模型关注输入序列中的不同位置，从而捕捉长距离依赖关系。
-
-2. **多头注意力（Multi-Head Attention）**：将注意力机制分成多个"头"，每个头可以关注不同的信息模式。
-
-3. **位置编码（Positional Encoding）**：由于Transformer不像RNN那样天然处理序列，位置编码被添加到输入嵌入中以提供位置信息。
-
-4. **前馈神经网络（Feed-Forward Neural Network）**：在每个Transformer层中，自注意力后面是一个前馈网络。
-
-5. **残差连接和层归一化（Residual Connections and Layer Normalization）**：帮助训练更深的网络并保持梯度流动。
-
-Transformer的结构使其特别适合并行化，因为它不需要像RNN那样按顺序处理输入。这使得它在训练大型模型时非常高效。
-
-你对Transformer的哪个方面特别感兴趣？我可以更详细地解释。`,
-      role: 'assistant',
-      timestamp: new Date(2023, 2, 20, 14, 31).toISOString()
-    }
-  ],
-  2: [
-    {
-      id: '3',
-      content: '我需要改进我的研究方法部分，你有什么建议吗？',
-      role: 'user',
-      timestamp: new Date(2023, 2, 21, 9, 15).toISOString()
-    },
-    {
-      id: '4',
-      content: `改进研究方法部分的几点建议：
-
-1. **明确研究问题和假设**：确保研究问题清晰具体，假设可测试。
-  
-2. **方法学选择合理性**：解释为什么选择这种方法，它如何适合你的研究问题。
-  
-3. **详细描述步骤**：提供足够详细的信息，使其他研究者能够复制你的工作。
-  
-4. **样本选择和规模**：说明样本如何选择，大小如何确定，以及任何纳入/排除标准。
-  
-5. **数据收集工具**：详细描述使用的工具、问卷或设备，包括其有效性和可靠性。
-  
-6. **控制变量**：解释如何控制潜在的干扰变量。
-  
-7. **数据分析方法**：清楚说明使用的统计方法或分析技术，以及为什么选择它们。
-  
-8. **伦理考虑**：讨论任何伦理问题以及如何解决它们。
-  
-9. **局限性认识**：坦率承认方法的局限性，表明你对研究有全面认识。
-  
-10. **前期研究或预试验**：如果进行了预试验，包括结果和随后的方法调整。
-
-需要针对你的具体研究领域或方法提供更具体的建议吗？`,
-      role: 'assistant',
-      timestamp: new Date(2023, 2, 21, 9, 17).toISOString()
-    }
-  ],
-  3: [],
-  4: []
-};
+// 聊天消息数据由Redux状态管理
+const initialMessages: Record<number, Message[]> = {};
 
 const ChatPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -117,7 +53,6 @@ const ChatPage: React.FC = () => {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const navigate = useNavigate();
   const { streamContent: streamedContent, isProcessing, processStream, cancelGeneration } = useStreamMessage(activeSessionId);
 
   // 获取文件管理器实例
@@ -145,125 +80,229 @@ const ChatPage: React.FC = () => {
     }
   }, [dispatch, allMessages, sessionData]);
 
+  // 辅助函数：获取会话分组（今天、昨天、本周、更早）
+  const getSessionGroup = (updateTime?: string): string => {
+    if (!updateTime) return '未知';
+    
+    const sessionDate = new Date(updateTime);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // 今天
+    if (sessionDate.toDateString() === today.toDateString()) {
+      return '今天';
+    }
+    
+    // 昨天
+    if (sessionDate.toDateString() === yesterday.toDateString()) {
+      return '昨天';
+    }
+    
+    // 本周（过去7天）
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    if (sessionDate >= oneWeekAgo) {
+      return '本周';
+    }
+    
+    // 更早
+    return '更早';
+  };
+
   // 从后端加载历史会话
   useEffect(() => {
-    // 添加一个标志，防止重复加载
-    const sessionDataFromLocalStorage = localStorage.getItem('chatSessions');
-    const hasLoadedFromBackend = localStorage.getItem('hasLoadedSessionsFromBackend');
-    
-    // 如果没有从后端加载过会话，并且本地存储中没有会话数据或会话数据为空数组，则从后端加载
-    if (!hasLoadedFromBackend && (!sessionDataFromLocalStorage || sessionDataFromLocalStorage === '[]')) {
-      const fetchHistorySessions = async () => {
-        try {
-          const response = await getSessionsUsingGet();
-          if (response && response.data && response.data.code === 0 && response.data.data) {
-            const backendSessions = response.data.data;
+    // 每次应用启动时都从后端获取最新会话列表，确保缓存一致性
+    // 注意：这里只加载会话列表，不加载消息内容，消息内容仍然在点击会话时加载
+    const fetchHistorySessions = async () => {
+      try {
+        console.log('从后端获取会话列表');
+        // 使用Swagger生成的API函数获取会话列表
+        const response = await getSessionsUsingGet();
+        if (response && response.data && response.data.code === 0 && response.data.data) {
+          const backendSessions = response.data.data;
+          
+          // 将后端会话转换为前端会话格式
+          const convertedSessions: ChatSession[] = backendSessions.map(session => {
+            // 确保ID是number类型
+            const sessionId = session.id ? Number(session.id) : Date.now();
             
-            // 将后端会话转换为前端会话格式
-            const convertedSessions: ChatSession[] = backendSessions.map(session => {
-              // 确保ID是number类型
-              const sessionId = session.id ? Number(session.id) : Date.now();
-              
-              return {
-                id: sessionId,
-                name: session.sessionName || "未命名会话",
-                backendSessionId: sessionId, // 保存后端会话ID
-                lastMessage: "点击加载消息", // 默认提示
-                timestamp: session.updateTime ? new Date(session.updateTime).toLocaleString() : "未知时间",
-                group: getSessionGroup(session.updateTime)
-              };
-            });
-            
-            // 对会话进行排序 - 按更新时间降序
-            const sortedSessions = convertedSessions.sort((a, b) => {
-              const timeA = a.timestamp && a.timestamp !== "未知时间" ? new Date(a.timestamp).getTime() : 0;
-              const timeB = b.timestamp && b.timestamp !== "未知时间" ? new Date(b.timestamp).getTime() : 0;
-              return timeB - timeA;
-            });
-            
-            // 检查本地是否已有会话，如果有则合并保留用户本地设置的星标和置顶状态
-            const localSessions = sessionData;
-            
-            if (localSessions && localSessions.length > 0) {
-              // 合并本地和远程会话，保留本地设置的星标和置顶状态
-              const mergedSessions = sortedSessions.map(session => {
-                const localSession = localSessions.find(local => local.backendSessionId === session.backendSessionId);
-                if (localSession) {
+            // 优先使用theme字段作为会话标题，如果为空则使用sessionName或默认值
+            console.log('会话信息:', session);
+            return {
+              id: sessionId,
+              name: session.theme || session.sessionName || "未命名会话",
+              backendSessionId: sessionId, // 保存后端会话ID
+              lastMessage: "点击加载消息", // 默认提示
+              timestamp: session.updateTime ? new Date(session.updateTime).toLocaleString() : "未知时间",
+              group: getSessionGroup(session.updateTime),
+              updateTime: session.updateTime // 保存原始的updateTime字段，用于时间戳比较
+            };
+          });
+          
+          // 对会话进行排序 - 按更新时间降序
+          const sortedSessions = convertedSessions.sort((a, b) => {
+            const timeA = a.timestamp && a.timestamp !== "未知时间" ? new Date(a.timestamp).getTime() : 0;
+            const timeB = b.timestamp && b.timestamp !== "未知时间" ? new Date(b.timestamp).getTime() : 0;
+            return timeB - timeA;
+          });
+          
+          // 检查本地是否已有会话，如果有则合并保留用户本地设置的星标和置顶状态
+          const localSessions = sessionData;
+          
+          if (localSessions && localSessions.length > 0) {
+            // 合并本地和远程会话，保留本地设置的星标和置顶状态
+            const mergedSessions = sortedSessions.map(session => {
+              const localSession = localSessions.find(local => local.backendSessionId === session.backendSessionId);
+              if (localSession) {
+                // 如果本地会话存在，检查是否需要更新
+                const needsUpdate = !localSession.updateTime || 
+                                    (session.updateTime && localSession.updateTime !== session.updateTime);
+                
+                console.log(`会话 ${session.id} 本地时间戳: ${localSession.updateTime}, 后端时间戳: ${session.updateTime}, 需要更新: ${needsUpdate}`);
+                
+                // 如果需要更新，使用后端数据，但保留本地设置
+                if (needsUpdate) {
+                  // 标记会话需要重新加载消息
+                  localStorage.setItem(`session_${session.id}_needsRefresh`, 'true');
+                  
                   return {
                     ...session,
                     pinned: localSession.pinned,
                     starred: localSession.starred
                   };
+                } else {
+                  // 如果不需要更新，保留本地会话信息，仅更新标题等关键信息
+                  return {
+                    ...localSession,
+                    name: session.name, // 使用最新的标题
+                    updateTime: session.updateTime // 保持时间戳一致
+                  };
                 }
-                return session;
-              });
+              }
+              // 如果本地没有这个会话，这是一个新会话，需要标记为需要刷新
+              // 因为新会话需要从后端加载消息
+              localStorage.setItem(`session_${session.id}_needsRefresh`, 'true');
               
-              dispatch(setSessions(mergedSessions));
-            } else {
-              // 直接设置后端获取的会话
-              dispatch(setSessions(sortedSessions));
-            }
+              // 初始化该会话的加载时间，避免使用默认值0导致isDataStale总是为true
+              const updatedTimes = {
+                ...sessionLoadTimes,
+                [session.id]: Date.now()
+              };
+              setSessionLoadTimes(updatedTimes);
+              localStorage.setItem('sessionLoadTimes', JSON.stringify(updatedTimes));
+              
+              return session;
+            });
             
-            // 如果有会话，设置第一个为活动会话（除非已有活动会话）
-            if (sortedSessions.length > 0 && !activeSessionId) {
-              dispatch(setActiveSessionId(sortedSessions[0].id));
-            }
+            dispatch(setSessions(mergedSessions));
+          } else {
+            // 直接设置后端获取的会话，并标记所有会话需要重新加载
+            // 这是首次加载会话列表，所有会话都需要从后端加载消息
+            const initialTimes = { ...sessionLoadTimes };
+            
+            sortedSessions.forEach(session => {
+              localStorage.setItem(`session_${session.id}_needsRefresh`, 'true');
+              
+              // 初始化所有会话的加载时间，避免使用默认值0导致isDataStale总是为true
+              initialTimes[session.id] = Date.now();
+            });
+            
+            setSessionLoadTimes(initialTimes);
+            localStorage.setItem('sessionLoadTimes', JSON.stringify(initialTimes));
+            
+            dispatch(setSessions(sortedSessions));
           }
           
-          // 在成功加载后设置标志，以防重复加载
-          localStorage.setItem('hasLoadedSessionsFromBackend', 'true');
-          
-        } catch (error) {
-          console.error('获取历史会话失败:', error);
-          message.error('获取历史会话失败，将使用本地缓存');
+          // 记录会话列表的最后加载时间
+          localStorage.setItem('sessionsLastLoadTime', Date.now().toString());
         }
-      };
-      
-      // 辅助函数：获取会话分组（今天、昨天、本周、更早）
-      const getSessionGroup = (updateTime?: string): string => {
-        if (!updateTime) return '未知';
-        
-        const sessionDate = new Date(updateTime);
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        // 今天
-        if (sessionDate.toDateString() === today.toDateString()) {
-          return '今天';
-        }
-        
-        // 昨天
-        if (sessionDate.toDateString() === yesterday.toDateString()) {
-          return '昨天';
-        }
-        
-        // 本周（过去7天）
-        const oneWeekAgo = new Date(today);
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        if (sessionDate >= oneWeekAgo) {
-          return '本周';
-        }
-        
-        // 更早
-        return '更早';
-      };
-      
+      } catch (error) {
+        console.error('获取历史会话失败:', error);
+        message.error('获取历史会话失败，将使用本地缓存');
+      }
+    };
+    
+    // 立即执行获取会话列表
+    fetchHistorySessions();
+    
+    // 设置定期刷新会话列表的定时器（每5分钟刷新一次）
+    const refreshInterval = setInterval(() => {
+      console.log('定时刷新会话列表');
       fetchHistorySessions();
+    }, 5 * 60 * 1000);
+    
+    // 组件卸载时清除定时器
+    return () => clearInterval(refreshInterval);
+    
+  }, [dispatch]); // 移除sessionData依赖，防止无限循环
+
+  // 组件首次加载时，确保当前有一个活跃会话
+  useEffect(() => {
+    // 取消自动选择第一个会话
+    // if (!activeSessionId && sessionData.length > 0) {
+    //   dispatch(setActiveSessionId(sessionData[0].id));
+    // }
+  }, [activeSessionId, sessionData, dispatch]);
+  
+  // 维护会话ID映射关系
+  useEffect(() => {
+    // 当会话列表变更时检查并同步ID映射
+    let sessionIdMap = new Map();
+    sessionData.forEach(session => {
+      if (session.backendSessionId) {
+        sessionIdMap.set(session.backendSessionId, session.id);
+      }
+    });
+    
+    // 保存映射关系
+    if (sessionIdMap.size > 0) {
+      localStorage.setItem('sessionIdMap', JSON.stringify(Array.from(sessionIdMap.entries())));
     }
-  }, [dispatch, sessionData, activeSessionId]);
+  }, [sessionData]);
 
   // 处理侧边栏切换
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
   };
 
+  // 缓存会话消息的时间戳记录
+  const [sessionLoadTimes, setSessionLoadTimes] = useState<Record<number, number>>(() => {
+    // 从 localStorage 中加载会话加载时间
+    try {
+      const savedTimes = localStorage.getItem('sessionLoadTimes');
+      return savedTimes ? JSON.parse(savedTimes) : {};
+    } catch (e) {
+      console.error('解析会话加载时间失败:', e);
+      return {};
+    }
+  });
+
   // 处理会话选择
   const handleSelectSession = async (sessionId: number) => {
+    // 首先取消可能正在进行的流式生成
+    if (isProcessing) {
+      cancelGeneration();
+    }
+    
+    // 当切换会话时，流式内容已经通过cancelGeneration()重置
+    
+    // 设置活动会话ID
     dispatch(setActiveSessionId(sessionId));
     
     // 获取当前会话信息
     const selectedSession = sessionData.find(s => s.id === sessionId);
+    
+    // 如果会话加载时间不存在，初始化为当前时间
+    // 这避免了使用默认值0导致isDataStale总是为true
+    if (!sessionLoadTimes[sessionId]) {
+      const updatedTimes = {
+        ...sessionLoadTimes,
+        [sessionId]: Date.now()
+      };
+      setSessionLoadTimes(updatedTimes);
+      localStorage.setItem('sessionLoadTimes', JSON.stringify(updatedTimes));
+    }
     
     // 如果存在后端会话ID，尝试获取历史消息
     if (selectedSession?.backendSessionId) {
@@ -271,43 +310,141 @@ const ChatPage: React.FC = () => {
         // 检查是否已经加载过这个会话的消息
         const sessionMessages = allMessages[sessionId] || [];
         
-        // 如果会话消息为空，尝试从后端获取
-        if (sessionMessages.length === 0) {
+        // 检查会话是否需要刷新
+        const needsRefresh = localStorage.getItem(`session_${sessionId}_needsRefresh`) === 'true';
+        
+        // 只在会话消息为空或需要刷新时加载消息
+        // 移除了数据过期的检查，完全依赖时间戳比较和刷新标记
+        
+        if (sessionMessages.length === 0 || needsRefresh) {
           // 显示加载状态
           dispatch(setMessageLoading(true));
           
-          // 从后端获取会话消息
-          const messages = await SessionAPI.getSessionMessages(selectedSession.backendSessionId);
+          let response;
+          
+          // 如果是首次加载或需要完全刷新，则清除所有消息并使用原始API
+          if (sessionMessages.length === 0 || needsRefresh) {
+            console.log(`从后端加载全部会话消息. 会话ID: ${sessionId}`);
+            
+            // 清除现有消息，避免消息累加
+            dispatch(clearSessionMessages(sessionId));
+            
+            // 使用原始API获取所有会话消息
+            response = await getSessionMessagesUsingGet({ sessionId: selectedSession.backendSessionId });
+          } else {
+            // 增量更新：获取最新的消息时间戳
+            const latestMessage = [...sessionMessages].sort((a, b) => 
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            )[0];
+            
+            let lastTimestamp = null;
+            if (latestMessage && latestMessage.timestamp) {
+              lastTimestamp = new Date(latestMessage.timestamp).toISOString();
+              console.log(`从后端增量加载会话消息. 会话ID: ${sessionId}, 最新消息时间: ${lastTimestamp}`);
+              
+              // 使用新API获取指定时间戳后的消息
+              response = await getSessionMessagesByTimeStampUsingGet({ 
+                sessionId: selectedSession.backendSessionId,
+                timeStamp: lastTimestamp
+              });
+            } else {
+              // 如果无法获取最新时间戳，默认使用原始API
+              console.log(`无法获取最新消息时间戳，使用原始API加载全部消息`);
+              response = await getSessionMessagesUsingGet({ sessionId: selectedSession.backendSessionId });
+            }
+          }
+          
+          // 添加日志输出，查看响应内容
+          console.log('从后端获取的消息数据:', response);
+          
+          // API函数返回的是 SessionMessages[] 类型
+          // 不是 BaseResponse 类型，所以直接使用 response.data
+          const messages = response && response.data ? response.data : [];
+          
+          console.log('处理后的消息数组:', messages);
+          
+          // 清除需要刷新的标记
+          localStorage.removeItem(`session_${sessionId}_needsRefresh`);
+          
+          // 更新会话加载时间
+          const updatedTimes = {
+            ...sessionLoadTimes,
+            [sessionId]: Date.now()
+          };
+          setSessionLoadTimes(updatedTimes);
+          
+          // 将更新后的时间保存到 localStorage
+          localStorage.setItem('sessionLoadTimes', JSON.stringify(updatedTimes));
           
           if (messages && messages.length > 0) {
-            // 转换为前端消息格式并添加到Redux
-            messages.forEach(msg => {
-              const message: Message = {
-                id: `backend-${msg.id}`,
-                content: msg.content,
-                role: msg.role,
-                timestamp: msg.createTime
-              };
+            // 获取已存在的消息ID，用于去重
+            const existingIds = new Set<string>();
+            sessionMessages.forEach(msg => existingIds.add(msg.id));
+            
+            const processedMessages: Message[] = [];
+            
+            // 先将所有消息转换为前端格式，然后一次性添加
+            messages.forEach((msg, index) => {
+              // 生成唯一的消息ID
+              // 优先使用tempId，如果没有则使用索引和时间戳生成唯一ID
+              const messageId = msg.tempId || `backend-${selectedSession.backendSessionId}-${index}-${Date.now()}`;
               
-              if (msg.role === 'user') {
+              // 避免添加重复消息
+              if (!existingIds.has(messageId)) {
+                const message: Message = {
+                  id: messageId,
+                  content: msg.rawContent || msg.content || '',
+                  role: msg.role as 'user' | 'assistant',
+                  timestamp: msg.createTime || new Date().toISOString(),
+                  // 保留后端返回的重要字段
+                  sessionId: msg.sessionId ? Number(msg.sessionId) : selectedSession.backendSessionId || sessionId,
+                  tempId: msg.tempId,
+                  rawContent: msg.rawContent || msg.content || ''
+                };
+                
+                processedMessages.push(message);
+              }
+            });
+            
+            // 按时间排序消息
+            processedMessages.sort((a, b) => {
+              const timeA = new Date(a.timestamp).getTime();
+              const timeB = new Date(b.timestamp).getTime();
+              return timeA - timeB;
+            });
+            
+            // 一次性添加所有消息
+            processedMessages.forEach(message => {
+              if (message.role === 'user') {
                 dispatch(addUserMessage({ sessionId, message }));
               } else {
                 dispatch(addAssistantMessage({ sessionId, message }));
               }
             });
             
+            console.log('已添加消息数量:', processedMessages.length);
+            
             // 更新会话的最后消息
             if (messages.length > 0) {
               const lastMsg = messages[messages.length - 1];
+              const messageContent = lastMsg.rawContent || lastMsg.content || '';
               dispatch(updateSession({
                 ...selectedSession,
-                lastMessage: lastMsg.content.substring(0, 30) + (lastMsg.content.length > 30 ? '...' : '')
+                lastMessage: messageContent.substring(0, 30) + (messageContent.length > 30 ? '...' : '')
               }));
             }
           }
           
+          // 更新会话消息加载时间
+          setSessionLoadTimes(prev => ({
+            ...prev,
+            [sessionId]: Date.now()
+          }));
+          
           // 关闭加载状态
           dispatch(setMessageLoading(false));
+        } else {
+          console.log(`使用缓存的会话消息. 会话ID: ${sessionId}, 消息数: ${sessionMessages.length}`);
         }
       } catch (error) {
         console.error('加载会话消息失败:', error);
@@ -339,7 +476,8 @@ const ChatPage: React.FC = () => {
       content,
       role: 'user',
       timestamp: new Date().toISOString(),
-      fileIds: options?.fileIds || []
+      fileIds: options?.fileIds || [],
+      sessionId: activeSessionId || 0  // 在创建时就添加会话ID
     };
 
     // 获取当前会话信息
@@ -357,10 +495,10 @@ const ChatPage: React.FC = () => {
       if (!currentSession?.backendSessionId) {
         console.log('需要创建新的后端会话');
         
-        // 创建新会话
-        const response = await SessionAPI.createSession("PaperPuppy");
+        // 使用Swagger生成的API函数创建新会话
+        const response = await createSessionUsingPost({ sessionName: "PaperPuppy" });
         
-        if (!response || !response.id || isNaN(response.id)) {
+        if (!response || !response.data || response.data.code !== 0 || !response.data.data || !response.data.data.id) {
           console.error('创建会话失败或返回了无效的会话ID:', response);
           message.error('创建会话失败：无法获取有效的会话ID');
           dispatch(setMessageLoading(false));
@@ -368,13 +506,24 @@ const ChatPage: React.FC = () => {
         }
         
         // 保存新的后端会话ID
-        backendSessionId = response.id;
+        backendSessionId = response.data.data.id;
         console.log('成功创建了新后端会话:', backendSessionId, typeof backendSessionId);
+        
+        // 获取现有的前端ID，或使用当前前端ID
+        const frontendId = activeSessionId || Date.now();
+        
+        // 获取会话信息，检查是否有theme
+        let sessionName = "PaperPuppy";
+        
+        // 如果有返回的会话信息，先检查是否有theme
+        if (response.data.data.theme) {
+          sessionName = response.data.data.theme;
+        }
         
         // 更新会话信息
         const updatedSession: ChatSession = {
-          id: activeSessionId || 0, // 保持前端ID不变
-          name: currentSession?.name || "PaperPuppy",
+          id: frontendId, // 保持前端ID不变
+          name: currentSession?.name || sessionName, // 优先使用theme，如果没有则使用默认值
           backendSessionId: backendSessionId, // 保存后端ID用于后续API调用
           lastMessage: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
           timestamp: '刚刚',
@@ -384,11 +533,25 @@ const ChatPage: React.FC = () => {
         // 如果会话不存在，创建新会话
         if (!currentSession) {
           dispatch(addSession(updatedSession));
-          dispatch(createEmptySession(activeSessionId || 0));
+          dispatch(createEmptySession(frontendId));
         } else {
           // 更新现有会话
           dispatch(updateSession(updatedSession));
         }
+        
+        // 更新会话ID映射
+        let sessionIdMap = new Map();
+        try {
+          const mappingStr = localStorage.getItem('sessionIdMap');
+          if (mappingStr) {
+            sessionIdMap = new Map(JSON.parse(mappingStr));
+          }
+        } catch (e) {
+          console.error('解析会话ID映射失败:', e);
+        }
+        
+        sessionIdMap.set(String(backendSessionId), frontendId);
+        localStorage.setItem('sessionIdMap', JSON.stringify(Array.from(sessionIdMap.entries())));
       } else {
         // 对于已有会话，使用缓存的后端会话ID
         backendSessionId = currentSession.backendSessionId;
@@ -396,7 +559,7 @@ const ChatPage: React.FC = () => {
       }
       
       // 步骤2: 发送消息到后端
-      await sendMessageToSession(backendSessionId, content, userMessage, options);
+      await sendMessageToSession(backendSessionId, content, options);
       
     } catch (error) {
       console.error('发送消息过程中出错:', error);
@@ -407,9 +570,8 @@ const ChatPage: React.FC = () => {
   
   // 发送消息到指定会话并处理响应
   const sendMessageToSession = async (
-    sessionId: number, 
+    sessionId: number, // 这是后端会话ID
     content: string, 
-    userMessage: Message,
     options?: {
       fileIds?: string[];
       enableDeepThought?: boolean;
@@ -419,6 +581,7 @@ const ChatPage: React.FC = () => {
   ) => {
     try {
       console.log('开始向会话ID发送消息:', sessionId);
+      console.log('消息内容:', content);
       
       // 创建FormData对象
       const formData = new FormData();
@@ -446,9 +609,15 @@ const ChatPage: React.FC = () => {
         });
       }
       
-      // 设置流式响应的URL
-      const sseUrl = `http://localhost:8101/api/sessions/${sessionId}/sendRPC`;
-      console.log('准备发送POST请求，URL:', sseUrl);
+      // 设置流式响应的URL，使用统一的baseURL
+      // 注意：使用与request.ts中相同的baseURL配置
+      const baseURL = 'http://192.168.50.140/api';
+      // 路径已从'/api/xx'修改为'/xx'以避免重复前缀
+      const sseUrl = `${baseURL}/sessions/${sessionId}/sendRPC`;
+      console.log('准备发送POST请求，使用后端ID:', sessionId, '前端ID:', activeSessionId, 'URL:', sseUrl);
+      
+      // 将后端ID保存到局部变量，确保在回调中可用
+      const currentBackendSessionId = sessionId;
       
       // 使用新的流处理钩子处理请求
       await processStream(sseUrl, formData, {
@@ -456,6 +625,57 @@ const ChatPage: React.FC = () => {
         onError: (error) => {
           console.error('流处理错误:', error);
           message.error('发送消息失败: ' + error.message);
+        },
+        onComplete: async (content) => {
+          // 流式消息完成后更新会话加载时间
+          if (activeSessionId) {
+            setSessionLoadTimes(prev => ({
+              ...prev,
+              [activeSessionId]: Date.now()
+            }));
+            
+            // 获取当前会话信息
+            const currentSession = sessionData.find(s => s.id === activeSessionId);
+            
+            // 只在会话标题为默认值"PaperPuppy"或者未设置时才获取会话信息
+            if (currentSession && (currentSession.name === "PaperPuppy" || !currentSession.name)) {
+              try {
+                // 使用局部保存的后端ID，确保即使是新创建的会话也能正确获取信息
+                // 如果当前会话有后端ID，优先使用，否则使用局部保存的ID
+                const backendSessionId = currentSession.backendSessionId || currentBackendSessionId;
+                console.log('消息流处理完成，获取会话信息，使用后端ID:', backendSessionId, '前端ID:', activeSessionId);
+                
+                if (!backendSessionId) {
+                  console.error('无法获取会话信息：后端ID不存在');
+                  return;
+                }
+                
+                const sessionResponse = await getSessionByIdUsingGet({ sessionId: backendSessionId });
+                
+                if (sessionResponse && sessionResponse.data && sessionResponse.data.code === 0 && sessionResponse.data.data) {
+                  const sessionInfo = sessionResponse.data.data;
+                  console.log('获取到会话信息:', sessionInfo);
+                  
+                  // 如果有theme，更新会话标题
+                  if (sessionInfo.theme) {
+                    console.log('使用theme更新会话标题:', sessionInfo.theme);
+                    
+                    // 更新会话标题
+                    const updatedSession = {
+                      ...currentSession,
+                      name: sessionInfo.theme // 使用theme作为会话标题
+                    };
+                    
+                    dispatch(updateSession(updatedSession));
+                  }
+                }
+              } catch (error) {
+                console.error('获取会话信息失败:', error);
+              }
+            } else {
+              console.log('会话标题已经设置，不需要获取会话信息');
+            }
+          }
         }
       });
       
@@ -475,7 +695,10 @@ const ChatPage: React.FC = () => {
   // 处理退出登录
   const handleLogout = async () => {
     try {
-      const success = await UserAPI.logout();
+      // 使用Swagger生成的API函数退出登录
+      const response = await userLogoutUsingPost();
+      const success = response && response.data && response.data.code === 0;
+      
       if (success) {
         // 清除会话加载标志
         localStorage.removeItem('hasLoadedSessionsFromBackend');
@@ -496,21 +719,8 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  // 用户菜单
-  const userMenu = (
-    <Menu>
-      <Menu.Item key="settings" icon={<SettingOutlined />}>
-        个人设置
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
-        退出登录
-      </Menu.Item>
-    </Menu>
-  );
-
-  // 当前会话的消息
-  const currentMessages = allMessages[currentSessionId] || [];
+  // 当前会话的消息 - 确保会话消息的隔离
+  const currentMessages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   
   // 检测窗口大小变化
   useEffect(() => {
@@ -544,8 +754,8 @@ const ChatPage: React.FC = () => {
     setPreviewFileId(fileId);
     setPreviewModalVisible(true);
   };
-
-  // 关闭预览模态框
+  
+  // 关闭文件预览模态框
   const handleClosePreview = () => {
     setPreviewModalVisible(false);
     setPreviewFileId(null);

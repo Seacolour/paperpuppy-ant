@@ -1,10 +1,11 @@
 import { message } from 'antd';
 import axios, { AxiosResponse } from 'axios';
-import { ApiResponse, LoginUserInfo, UserInfo, Session, SessionMessage, UserSubscription } from '../types/api';
+import { ApiResponse, LoginUserInfo, UserInfo } from '../types/api';
+// 注意：我们应该使用Swagger生成的API函数，而不是自定义实现
 
 // 创建axios实例
 const request = axios.create({
-  baseURL: 'http://localhost:8101', // 基础URL，实际项目中替换为您的API地址
+  baseURL: 'http://192.168.50.140/api', // 基础URL，实际项目中替换为您的API地址
   timeout: 10000, // 请求超时时间
   headers: {
     'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export const UserAPI = {
   // 用户登录
   login: async (username: string, password: string): Promise<LoginUserInfo | null> => {
     try {
-      const response = await request.post<any, any>('/api/user/login', {
+      const response = await request.post<any, any>('/user/login', {
         userAccount: username,
         userPassword: password
       });
@@ -156,7 +157,7 @@ export const UserAPI = {
       }
       
       // 根据typings.d.ts中API.SMSGetRequest类型定义，登录需要的是captcha而不是code
-      const response = await request.post<any, any>('/api/user/login/phone', {
+      const response = await request.post<any, any>('/user/login/phone', {
         phone: mobile,
         captcha: code
       });
@@ -225,7 +226,7 @@ export const UserAPI = {
       }
       
       // 发送验证码请求
-      const response = await request.get<any, any>('/api/sms/getPhoneNumber', {
+      const response = await request.get<any, any>('/sms/getPhoneNumber', {
         params: {
           phone: mobile
           // 移除captcha参数，因为实际上getPhoneNumberUsingGETParams类型只需要手机号
@@ -283,7 +284,7 @@ export const UserAPI = {
   // 获取当前登录用户信息
   getCurrentUser: async (): Promise<UserInfo | null> => {
     try {
-      const { data } = await request.get<any, AxiosResponse<ApiResponse<UserInfo>>>('/api/user/get/login');
+      const { data } = await request.get<any, AxiosResponse<ApiResponse<UserInfo>>>('/user/get/login');
       if (data.code === 0 && data.data) {
         return data.data;
       }
@@ -297,7 +298,7 @@ export const UserAPI = {
   // 用户注册
   register: async (userAccount: string, userPassword: string, checkPassword: string, email?: string): Promise<boolean> => {
     try {
-      const { data } = await request.post<any, AxiosResponse<ApiResponse<number>>>('/api/user/register', {
+      const { data } = await request.post<any, AxiosResponse<ApiResponse<number>>>('/user/register', {
         userAccount,
         userPassword,
         checkPassword,
@@ -321,7 +322,7 @@ export const UserAPI = {
   // 用户登出
   logout: async (): Promise<boolean> => {
     try {
-      await request.post('/api/user/logout');
+      await request.post('/user/logout');
       localStorage.removeItem('userToken');
       return true;
     } catch (error) {
@@ -333,7 +334,7 @@ export const UserAPI = {
   // 更新用户自己的信息
   updateMyInfo: async (userName?: string, userAvatar?: string): Promise<boolean> => {
     try {
-      const { data } = await request.post<any, AxiosResponse<ApiResponse<boolean>>>('/api/user/update/my', {
+      const { data } = await request.post<any, AxiosResponse<ApiResponse<boolean>>>('/user/update/my', {
         userName,
         userAvatar
       });
@@ -353,67 +354,11 @@ export const UserAPI = {
   }
 };
 
-// 会话API包装器
+// 会话API包装器 - 仅保留流式消息传输相关功能
+// 其他标准会话操作应使用Swagger生成的API函数
 export const SessionAPI = {
-  // 创建新会话
-  createSession: async (sessionName: string): Promise<{ id: number } | null> => {
-    try {
-      console.log('[API] 发送认证请求:', '/api/sessions/create');
-      const response = await request.post<any, AxiosResponse<ApiResponse<any>>>('/api/sessions/create', null, {
-        params: { sessionName },
-        headers: {
-          'Accept': 'application/json, text/plain, */*'
-        }
-      });
-      
-      console.log('[API] 响应:', '/api/sessions/create 状态:', response.status);
-      console.log('[API] 响应数据:', JSON.stringify(response.data));
-      
-      if (response.data && response.data.code === 0) {
-        // 如果data字段直接是数字，则直接使用
-        if (typeof response.data.data === 'number') {
-          return { id: response.data.data };
-        }
-        
-        // 如果data字段是对象，尝试获取id属性
-        if (response.data.data && typeof response.data.data === 'object' && 'id' in response.data.data) {
-          return { id: Number(response.data.data.id) };
-        }
-        
-        // 如果data字段是字符串但可以转为数字
-        if (typeof response.data.data === 'string' && !isNaN(Number(response.data.data))) {
-          return { id: Number(response.data.data) };
-        }
-        
-        console.error('无法解析会话ID，原始响应:', response.data);
-        message.error('创建会话失败：无法解析会话ID');
-        return null;
-      } else {
-        message.error(response.data?.message || '创建会话失败');
-        return null;
-      }
-    } catch (error) {
-      message.error('创建会话请求失败');
-      console.error('创建会话请求失败:', error);
-      return null;
-    }
-  },
 
-  // 获取会话列表
-  getSessionList: async (): Promise<Session[]> => {
-    try {
-      const { data } = await request.get<any, AxiosResponse<ApiResponse<Session[]>>>('/api/sessions/getSessions');
-      if (data.code === 0 && data.data) {
-        return data.data;
-      }
-      return [];
-    } catch (error) {
-      console.error('获取会话列表失败:', error);
-      return [];
-    }
-  },
-
-  // 发送消息
+  // 发送消息 - 保留此方法，因为它处理流式传输，这是Swagger生成的API无法满足的功能
   sendMessage: async (sessionId: number, content: string, options?: {
     enableDeepThought?: boolean;
     enableInternet?: boolean;
@@ -445,25 +390,25 @@ export const SessionAPI = {
         formData.append('useKnowledge', 'true');
       }
       
-      // 使用POST请求发送到sendRPC接口
-      const response = await request.post(`/api/sessions/${sessionId}/sendRPC`, formData, {
+      // 使用统一的baseURL
+      const baseURL = 'http://192.168.50.140/api';
+      const url = `${baseURL}/sessions/${sessionId}/sendRPC`;
+      
+      // 使用fetch API进行流式传输
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
         headers: {
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json, text/plain, text/event-stream, */*'
+          'Accept': 'text/event-stream',
+          'Authorization': `Bearer ${localStorage.getItem('userToken') || ''}`
         }
       });
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[API] 发送消息响应:', response);
+      if (!response.ok) {
+        throw new Error(`HTTP错误: ${response.status}`);
       }
       
-      if (response) {
-        return true;
-      } else {
-        const errorMsg = '发送消息失败';
-        message.error(errorMsg);
-        return false;
-      }
+      return true;
     } catch (error) {
       const errorMsg = '发送消息请求失败';
       message.error(errorMsg);
@@ -472,46 +417,13 @@ export const SessionAPI = {
     }
   },
 
-  // 获取会话消息历史
-  getSessionMessages: async (sessionId: number): Promise<SessionMessage[]> => {
-    try {
-      const { data } = await request.get<any, AxiosResponse<SessionMessage[]>>('/api/sessions/getSessionMessages', {
-        params: { sessionId }
-      });
-      
-      if (data) {
-        return data;
-      }
-      return [];
-    } catch (error) {
-      console.error('获取会话消息失败:', error);
-      return [];
-    }
-  }
+
 };
 
-// 订阅API包装器
-export const SubscriptionAPI = {
-  // 检查VIP状态
-  checkVIPStatus: async (userId: number): Promise<UserSubscription | null> => {
-    try {
-      const { data } = await request.get<any, AxiosResponse<ApiResponse<UserSubscription>>>('/api/subscription/status', {
-        params: { userId }
-      });
-      
-      if (data.code === 0 && data.data) {
-        return data.data;
-      }
-      return null;
-    } catch (error) {
-      console.error('检查VIP状态失败:', error);
-      return null;
-    }
-  }
-};
+// 注意：订阅相关API应该使用Swagger生成的API函数
+// 这里仅作为示例，实际项目中应该使用subscriptionController中的函数
 
 export default {
   user: UserAPI,
-  session: SessionAPI,
-  subscription: SubscriptionAPI
+  session: SessionAPI
 }; 

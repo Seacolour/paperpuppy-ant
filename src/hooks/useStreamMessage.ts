@@ -71,19 +71,34 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
 
       console.log('开始读取响应流...');
 
-      // 使用防抖更新UI
+      // 使用防抖更新UI，优化渲染性能
       let timeoutId: NodeJS.Timeout | null = null;
+      let lastUpdateTime = Date.now();
       const updateWithDebounce = (content: string) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
 
-        const debounceDelay = options?.debounceDelay || 80; // 默认较短延迟，保持流畅性
+        // 动态调整防抖延迟，根据内容长度和上次更新时间
+        const currentTime = Date.now();
+        const timeSinceLastUpdate = currentTime - lastUpdateTime;
+        
+        // 内容越长，更新间隔越大，避免频繁重渲染大型内容
+        const contentLength = content.length;
+        const baseDelay = options?.debounceDelay || 80;
+        const dynamicDelay = Math.min(
+          baseDelay + Math.floor(contentLength / 1000) * 10, // 内容越长，延迟越大
+          200 // 最大延迟200ms
+        );
+        
+        // 如果距离上次更新时间太短，增加延迟
+        const finalDelay = timeSinceLastUpdate < 50 ? dynamicDelay : baseDelay;
 
         timeoutId = setTimeout(() => {
           setStreamContent(content);
+          lastUpdateTime = Date.now();
           timeoutId = null;
-        }, debounceDelay);
+        }, finalDelay);
       };
 
       // 处理转义字符和格式化内容
@@ -236,39 +251,63 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
         }
       }
 
-      // 确保最终状态已更新
-      setStreamContent(accumulatedContent);
-
-      // 如果有会话ID，添加助手消息到Redux
-      if (options?.sessionId !== undefined || activeSessionId !== null) {
-        const sessionId = options?.sessionId ?? activeSessionId;
-
-        if (sessionId !== null) {
-          const assistantMessage: Message = {
-            id: uuidv4(),
-            content: accumulatedContent,
-            role: 'assistant',
-            timestamp: new Date().toISOString(),
-          };
-
-          dispatch(addAssistantMessage({ sessionId, message: assistantMessage }));
-        }
+      // 清除可能存在的防抖定时器
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
       }
-
-      // 完成回调
-      if (options?.onComplete) {
-        options.onComplete(accumulatedContent);
-      }
-
-      // 释放reader
-      reader.releaseLock();
-
-      // 重置状态
-      abortControllerRef.current = null;
-      setIsProcessing(false);
-
-      // 设置加载状态为false
-      dispatch(setLoading(false));
+      
+      // 使用微任务批量处理所有状态更新，减少重渲染
+      // 使用requestAnimationFrame确保状态更新与浏览器渲染周期同步
+      requestAnimationFrame(() => {
+        // 释放reader
+        reader.releaseLock();
+        
+        // 使用批处理更新所有状态，避免多次渲染
+        const batchUpdate = () => {
+          // 1. 如果有会话ID，添加助手消息到Redux
+          if (options?.sessionId !== undefined || activeSessionId !== null) {
+            const sessionId = options?.sessionId ?? activeSessionId;
+    
+            if (sessionId !== null) {
+              // 生成临时ID用于流式消息
+              const tempId = uuidv4();
+              
+              const assistantMessage: Message = {
+                id: uuidv4(),
+                content: accumulatedContent,
+                role: 'assistant',
+                timestamp: new Date().toISOString(),
+                // 添加重要字段
+                sessionId: sessionId,
+                tempId: tempId,
+                rawContent: accumulatedContent
+              };
+    
+              // 2. 添加消息到Redux
+              dispatch(addAssistantMessage({ sessionId, message: assistantMessage }));
+            }
+          }
+          
+          // 3. 设置加载状态为false
+          dispatch(setLoading(false));
+          
+          // 4. 重置处理状态
+          abortControllerRef.current = null;
+          setIsProcessing(false);
+          
+          // 5. 最后调用完成回调
+          if (options?.onComplete) {
+            options.onComplete(accumulatedContent);
+          }
+        };
+        
+        // 先更新流内容，然后在下一帧执行批量更新
+        setStreamContent(accumulatedContent);
+        
+        // 使用setTimeout确保UI有时间更新流内容后再执行批量更新
+        setTimeout(batchUpdate, 50);
+      });
 
       return accumulatedContent;
 
@@ -280,11 +319,17 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
         options.onError(error);
       }
 
-      // 重置状态
-      abortControllerRef.current = null;
-      setIsProcessing(false);
-      dispatch(setLoading(false));
-      setStreamContent('');
+      // 批量处理所有状态更新，减少重渲染
+      // 使用requestAnimationFrame确保状态更新与浏览器渲染周期同步
+      requestAnimationFrame(() => {
+        // 使用setTimeout确保UI有时间更新
+        setTimeout(() => {
+          abortControllerRef.current = null;
+          setIsProcessing(false);
+          dispatch(setLoading(false));
+          setStreamContent('');
+        }, 50);
+      });
 
       // 重新抛出错误，让调用者处理
       throw error;
@@ -304,5 +349,3 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
     cancelGeneration
   };
 };
-
-export default useStreamMessage; 

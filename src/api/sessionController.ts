@@ -2,39 +2,16 @@
 /* eslint-disable */
 import request from "../libs/request";
 
-/** sendMessage POST /api/sessions/${param0}/message */
-export async function sendMessageUsingPost(
+/** getNote GET /api/sessions/${param0}/getNote */
+export async function getNoteUsingGet(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.sendMessageRPCUsingPOSTParams,
-  body: {
-    /** fileIds */
-    fileIds?: string[];
-  },
+  params: API.getNoteUsingGETParams,
   options?: { [key: string]: any }
 ) {
   const { sessionId: param0, ...queryParams } = params;
-  
-  // 获取token并添加到请求选项
-  const token = localStorage.getItem('userToken');
-  const headers: Record<string, string> = {
-    "Content-Type": "multipart/form-data",
-    "Accept": "application/json, text/plain, text/event-stream, */*"
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  return request<API.SseEmitter>(`/api/sessions/${param0}/message`, {
-    method: "POST",
-    headers,
-    params: {
-      message: queryParams.message || "",
-      enableDeepThought: queryParams.enableDeepThought || false,
-      enableInternet: queryParams.enableInternet || false,
-      useKnowledge: queryParams.useKnowledge || false
-    },
-    data: body,
+  return request<API.BaseResponseString_>(`/api/sessions/${param0}/getNote`, {
+    method: "GET",
+    params: { ...queryParams },
     ...(options || {}),
   });
 }
@@ -50,26 +27,35 @@ export async function sendMessageRpcUsingPost(
   options?: { [key: string]: any }
 ) {
   const { sessionId: param0, ...queryParams } = params;
-  
-  // 获取token并添加到请求选项
-  const token = localStorage.getItem('userToken');
-  const headers: Record<string, string> = {
-    "Content-Type": "multipart/form-data",
-    "Accept": "application/json, text/plain, text/event-stream, */*"
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
   return request<API.SseEmitter>(`/api/sessions/${param0}/sendRPC`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     params: {
       // message has a default value: 解析以上内容
       message: "解析以上内容",
       ...queryParams,
     },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** updateNote PUT /api/sessions/${param0}/upNote */
+export async function updateNoteUsingPut(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.updateNoteUsingPUTParams,
+  body: string,
+  options?: { [key: string]: any }
+) {
+  const { sessionId: param0, ...queryParams } = params;
+  return request<API.BaseResponseSessions_>(`/api/sessions/${param0}/upNote`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
     data: body,
     ...(options || {}),
   });
@@ -81,19 +67,8 @@ export async function createSessionUsingPost(
   params: API.createSessionUsingPOSTParams,
   options?: { [key: string]: any }
 ) {
-  const token = localStorage.getItem('userToken');
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Accept": "application/json, text/plain, */*"
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
   return request<API.BaseResponseSessions_>("/api/sessions/create", {
     method: "POST",
-    headers,
     params: {
       ...params,
     },
@@ -101,25 +76,14 @@ export async function createSessionUsingPost(
   });
 }
 
-/** deleteSession DELETE /api/sessions/delete */
-export async function deleteSessionUsingDelete(
+/** deleteSession POST /api/sessions/deleteSession */
+export async function deleteSessionUsingPost(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.deleteSessionUsingPOSTParams,
   options?: { [key: string]: any }
 ) {
-  const token = localStorage.getItem('userToken');
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Accept": "application/json, text/plain, */*"
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  return request<API.BaseResponseBoolean_>("/api/sessions/delete", {
-    method: "DELETE",
-    headers,
+  return request<API.BaseResponseBoolean_>("/api/sessions/deleteSession", {
+    method: "POST",
     params: {
       ...params,
     },
@@ -148,19 +112,8 @@ export async function getSessionMessagesUsingGet(
   params: API.getSessionMessagesUsingGETParams,
   options?: { [key: string]: any }
 ) {
-  const token = localStorage.getItem('userToken');
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Accept": "application/json, text/plain, */*"
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
   return request<API.SessionMessages[]>("/api/sessions/getSessionMessages", {
     method: "GET",
-    headers,
     params: {
       ...params,
     },
@@ -168,21 +121,28 @@ export async function getSessionMessagesUsingGet(
   });
 }
 
+/** getSessionMessagesByTimeStamp GET /api/sessions/getSessionMessagesByTimeStamp */
+export async function getSessionMessagesByTimeStampUsingGet(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getSessionMessagesByTimeStampUsingGETParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.SessionMessages[]>(
+    "/api/sessions/getSessionMessagesByTimeStamp",
+    {
+      method: "GET",
+      params: {
+        ...params,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
 /** getSessions GET /api/sessions/getSessions */
 export async function getSessionsUsingGet(options?: { [key: string]: any }) {
-  const token = localStorage.getItem('userToken');
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Accept": "application/json, text/plain, */*"
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
   return request<API.BaseResponseListSessions_>("/api/sessions/getSessions", {
     method: "GET",
-    headers,
     ...(options || {}),
   });
 }

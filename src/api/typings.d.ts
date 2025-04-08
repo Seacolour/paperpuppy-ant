@@ -172,6 +172,11 @@ declare namespace API {
     fileId: string;
   };
 
+  type getNoteUsingGETParams = {
+    /** sessionId */
+    sessionId: number;
+  };
+
   type getPhoneNumberUsingGETParams = {
     phone?: string;
   };
@@ -179,6 +184,13 @@ declare namespace API {
   type getSessionByIdUsingGETParams = {
     /** sessionId */
     sessionId?: number;
+  };
+
+  type getSessionMessagesByTimeStampUsingGETParams = {
+    /** sessionId */
+    sessionId?: number;
+    /** timeStamp */
+    timeStamp?: string;
   };
 
   type getSessionMessagesUsingGETParams = {
@@ -324,6 +336,7 @@ declare namespace API {
     createTime?: string;
     id?: number;
     isActive?: number;
+    note?: string;
     sessionName?: string;
     theme?: string;
     updateTime?: string;
@@ -350,6 +363,11 @@ declare namespace API {
     durationDays?: number;
     subscriptionType?: string;
     userId?: number;
+  };
+
+  type updateNoteUsingPUTParams = {
+    /** sessionId */
+    sessionId: number;
   };
 
   type User = {

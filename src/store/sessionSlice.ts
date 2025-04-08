@@ -9,6 +9,7 @@ export interface ChatSession {
   pinned?: boolean;
   starred?: boolean;
   group?: string;
+  updateTime?: string; // 添加updateTime字段，存储后端会话的更新时间
 }
 
 interface SessionState {
@@ -16,6 +17,7 @@ interface SessionState {
   activeSessionId: number | null;
   showGrouped: boolean;
   showMoreInfo: boolean;
+  lastRefreshed: number; // 标记最后一次刷新会话列表的时间戳
 }
 
 // 从localStorage获取初始状态
@@ -31,6 +33,7 @@ const loadInitialState = (): SessionState => {
       activeSessionId: savedActiveId ? parseInt(savedActiveId, 10) : null,
       showGrouped: savedGrouped ? JSON.parse(savedGrouped) : false,
       showMoreInfo: savedMoreInfo ? JSON.parse(savedMoreInfo) : false,
+      lastRefreshed: 0, // 初始化为0
     };
   } catch (error) {
     console.error('Error loading sessions from localStorage:', error);
@@ -39,6 +42,7 @@ const loadInitialState = (): SessionState => {
       activeSessionId: null,
       showGrouped: false,
       showMoreInfo: false,
+      lastRefreshed: 0,
     };
   }
 };
@@ -51,6 +55,7 @@ export const sessionSlice = createSlice({
   reducers: {
     setSessions: (state, action: PayloadAction<ChatSession[]>) => {
       state.sessions = action.payload;
+      state.lastRefreshed = Date.now(); // 更新最后刷新时间戳
       localStorage.setItem('chatSessions', JSON.stringify(action.payload));
     },
     addSession: (state, action: PayloadAction<ChatSession>) => {

@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from "@/libs/request";
+import request from "../libs/request";
 
 /** deleteIndex DELETE /api/knowledge/${param0} */
 export async function deleteIndexUsingDelete(

@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from "@/libs/request";
+import request from "../libs/request";
 
 /** checkUserTokens POST /api/userToken/checkUserTokens */
 export async function checkUserTokensUsingPost(

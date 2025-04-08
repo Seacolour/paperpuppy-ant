@@ -4,8 +4,9 @@ import axios, { AxiosRequestConfig } from "axios";
 const pendingRequests = new Map();
 
 // 创建 Axios 示例
+// 根据环境选择合适的baseURL
 const myAxios = axios.create({
-  baseURL: "http://localhost:8101",
+  baseURL: "http://192.168.50.140", // 包含/api路径前缀，与Nginx配置匹配
   timeout: 10000,
   withCredentials: true,
 });
@@ -42,9 +43,23 @@ myAxios.interceptors.request.use(
     config.signal = controller.signal;
     pendingRequests.set(requestKey, controller);
     
+    // 添加详细日志
+    console.log('[请求跟踪] 即将发送请求:', {
+      url: config.url,
+      method: config.method,
+      baseURL: config.baseURL,
+      params: config.params,
+      headers: config.headers,
+      完整URL: (config.baseURL || '') + (config.url || '') + 
+             (config.params ? '?' + Object.entries(config.params)
+                               .map(([key, value]) => `${key}=${value}`)
+                               .join('&') : '')
+    });
+    
     return config;
   },
   (error) => {
+    console.error('[请求跟踪] 请求配置错误:', error);
     return Promise.reject(error);
   }
 );

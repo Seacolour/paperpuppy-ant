@@ -36,8 +36,11 @@ export interface SessionMessage {
   sessionId: number;
   userId: number;
   content: string;
+  rawContent?: string; // 原始格式的消息内容
   role: 'user' | 'assistant';
   createTime: string;
+  tempId?: string;    // 流式消息的临时ID
+  messageType?: string; // 消息类型，如AIMessage等
 }
 
 // 用户订阅信息

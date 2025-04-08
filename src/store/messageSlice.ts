@@ -6,6 +6,10 @@ export interface Message {
   role: 'user' | 'assistant';
   timestamp: string;
   fileIds?: string[];
+  // 添加后端API返回的重要字段
+  sessionId?: number;  // 消息所属的会话ID
+  tempId?: string;     // 流式消息的临时ID
+  rawContent?: string; // 原始格式的消息内容
 }
 
 interface MessageState {
@@ -79,8 +83,14 @@ export const messageSlice = createSlice({
       if (!state.messages[sessionId]) {
         state.messages[sessionId] = [];
       }
-      state.messages[sessionId].push(serializedMessage);
-      localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(state.messages));
+      
+      // 检查是否已存在相同ID的消息
+      const existingMessageIndex = state.messages[sessionId].findIndex(msg => msg.id === message.id);
+      if (existingMessageIndex === -1) {
+        // 只有当消息不存在时才添加
+        state.messages[sessionId].push(serializedMessage);
+        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(state.messages));
+      }
     },
     addAssistantMessage: (state, action: PayloadAction<{ sessionId: number; message: Message }>) => {
       const { sessionId, message } = action.payload;
@@ -89,8 +99,14 @@ export const messageSlice = createSlice({
       if (!state.messages[sessionId]) {
         state.messages[sessionId] = [];
       }
-      state.messages[sessionId].push(serializedMessage);
-      localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(state.messages));
+      
+      // 检查是否已存在相同ID的消息
+      const existingMessageIndex = state.messages[sessionId].findIndex(msg => msg.id === message.id);
+      if (existingMessageIndex === -1) {
+        // 只有当消息不存在时才添加
+        state.messages[sessionId].push(serializedMessage);
+        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(state.messages));
+      }
     },
     clearSessionMessages: (state, action: PayloadAction<number>) => {
       const sessionId = action.payload;

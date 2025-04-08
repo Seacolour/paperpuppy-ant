@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from "@/libs/request";
+import request from "../libs/request";
 
 /** getPhoneNumber GET /api/sms/getPhoneNumber */
 export async function getPhoneNumberUsingGet(
