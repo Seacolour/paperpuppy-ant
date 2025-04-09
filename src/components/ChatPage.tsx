@@ -22,7 +22,8 @@ import {
   clearSessionMessages, 
   setLoading as setMessageLoading,
   createEmptySession,
-  Message
+  Message,
+  updateStreamMessage
 } from '../store/messageSlice';
 import { useAppSelector } from '../store';
 import { 
@@ -116,6 +117,12 @@ const ChatPage: React.FC = () => {
     // 注意：这里只加载会话列表，不加载消息内容，消息内容仍然在点击会话时加载
     const fetchHistorySessions = async () => {
       try {
+        // 检查是否已经有会话数据，如果有则不重复加载
+        if (sessionData && sessionData.length > 0) {
+          console.log('已有会话数据，跳过自动加载');
+          return;
+        }
+        
         console.log('从后端获取会话列表');
         // 使用Swagger生成的API函数获取会话列表
         const response = await getSessionsUsingGet();
@@ -223,19 +230,25 @@ const ChatPage: React.FC = () => {
       }
     };
     
-    // 立即执行获取会话列表
-    fetchHistorySessions();
+    // 不立即执行获取会话列表，而是延迟3秒
+    // 这样可以让Sidebar组件先加载会话列表
+    const timer = setTimeout(() => {
+      fetchHistorySessions();
+    }, 3000);
     
-    // 设置定期刷新会话列表的定时器（每5分钟刷新一次）
+    // 设置定期刷新会话列表的定时器（每10分钟刷新一次，不与Sidebar的5分钟冲突）
     const refreshInterval = setInterval(() => {
       console.log('定时刷新会话列表');
       fetchHistorySessions();
-    }, 5 * 60 * 1000);
+    }, 10 * 60 * 1000);
     
     // 组件卸载时清除定时器
-    return () => clearInterval(refreshInterval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(refreshInterval);
+    };
     
-  }, [dispatch]); // 移除sessionData依赖，防止无限循环
+  }, [dispatch, sessionData.length]); // 添加sessionData.length依赖，在会话列表变化后不再重复加载
 
   // 组件首次加载时，确保当前有一个活跃会话
   useEffect(() => {
@@ -636,6 +649,16 @@ const ChatPage: React.FC = () => {
             
             // 获取当前会话信息
             const currentSession = sessionData.find(s => s.id === activeSessionId);
+            
+            // 更新会话的最后消息
+            if (currentSession) {
+              dispatch(updateSession({
+                ...currentSession,
+                lastMessage: content.substring(0, 30) + (content.length > 30 ? '...' : ''),
+                timestamp: '刚刚',
+                group: '今天'
+              }));
+            }
             
             // 只在会话标题为默认值"PaperPuppy"或者未设置时才获取会话信息
             if (currentSession && (currentSession.name === "PaperPuppy" || !currentSession.name)) {

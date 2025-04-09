@@ -16,6 +16,9 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
   scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  will-change: transform;
 }
 
 .chat-messages {
@@ -126,7 +129,7 @@
   display: flex;
   position: relative;
   font-size: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
 }
 
 .user-message {
@@ -165,6 +168,7 @@
 .message-content {
   position: relative;
   max-width: 90%;
+  transition: opacity 0.3s ease-in-out;
 }
 
 .user-content {
@@ -212,6 +216,8 @@
   padding: 4px 0;
   margin-bottom: 8px;
   box-shadow: none;
+  min-height: 24px;
+  transition: min-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
 .message-role {
@@ -389,6 +395,8 @@
   background-image: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  transition: opacity 0.3s ease-in-out;
+  will-change: opacity;
 }
 
 /* 清除内部滚动效果 */
@@ -1147,6 +1155,7 @@
   margin: 16px 0;
   overflow: hidden;
   width: 100%;
+  transition: all 0.3s ease-in-out;
 }
 
 /* 确保代码块正确显示 */
@@ -1359,4 +1368,177 @@ pre {
 .markdown-paragraph + div > .katex-display,
 .katex-display + .markdown-paragraph {
   margin-top: 1.2em !important;
+}
+
+/* 添加流式消息渲染的平滑过渡效果 */
+.message {
+  transition: all 0.3s ease-in-out;
+}
+
+.message-content {
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* 确保流式消息和正常消息之间平滑过渡 */
+.assistant-message .markdown-content, 
+.typing-message .markdown-content {
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* 防止布局突变 */
+.assistant-text {
+  min-height: 24px;
+  transition: min-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+/* 流式消息状态 */
+.assistant-content.streaming {
+  position: relative;
+}
+
+.assistant-content.stream-complete {
+  animation: fadeInComplete 0.5s ease-in-out;
+}
+
+/* 动画消息 */
+.assistant-content.animate {
+  animation: gentlePulse 0.5s ease-in-out;
+}
+
+/* 打字光标 */
+.typing-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: #1677ff;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: cursorBlink 1s infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fadeInComplete {
+  0% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+@keyframes gentlePulse {
+  0% { transform: scale(0.998); opacity: 0.95; }
+  50% { transform: scale(1.002); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 确保代码块中的内容有平滑过渡 */
+.code-wrapper {
+  transition: all 0.3s ease-in-out;
+}
+
+/* 控制消息容器的稳定性 */
+.message-container {
+  will-change: contents;
+  contain: content;
+  transition: height 0.3s ease-in-out;
+}
+
+/* 保持katex公式的稳定性 */
+.katex-display {
+  transition: opacity 0.3s ease-in-out; 
+  will-change: opacity;
+}
+
+/* 优化滚动性能 */
+.messages-container {
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  will-change: transform;
+}
+
+/* 减少重绘区域 */
+.markdown-content p, 
+.markdown-content pre,
+.markdown-content blockquote,
+.markdown-content ul,
+.markdown-content ol {
+  contain: content;
+  will-change: contents;
+}
+
+/* 取消生成按钮 */
+.cancel-generation-btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.cancel-generation-btn:hover {
+  transform: scale(1.05);
+}
+
+/* 添加渲染错误时的备用样式 */
+.math-renderer.error-fallback {
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  padding: 16px;
+  background-color: #fff2f0;
+  margin: 8px 0;
+  transition: all 0.3s ease;
+}
+
+.render-error-message {
+  color: #ff4d4f;
+  font-size: 14px;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 3px solid #ff4d4f;
+}
+
+.fallback-content {
+  transition: opacity 0.3s ease;
+}
+
+/* 添加加载占位符样式 */
+.loading-placeholder {
+  height: 20px;
+  display: inline-block;
+  color: #d9d9d9;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.3; }
+}
+
+/* 添加渲染过渡效果 */
+.markdown-content, .math-renderer {
+  transition: opacity 0.5s ease-in-out;
+  will-change: contents;
+  min-height: 24px;
+}
+
+/* 确保在渲染器切换时平滑过渡 */
+.assistant-content.streaming .math-renderer,
+.assistant-content.streaming .markdown-content {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* 防止LaTeX渲染抖动 */
+.katex-display, .katex-inline {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* 确保流式内容在处理期间的稳定性 */
+.assistant-text {
+  contain: content;
+  content-visibility: auto;
 } 

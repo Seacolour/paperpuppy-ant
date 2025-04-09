@@ -31,17 +31,8 @@ myAxios.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     
-    // 防止重复请求 (可选功能)
-    const requestKey = generateRequestKey(config);
-    if (pendingRequests.has(requestKey)) {
-      const controller = pendingRequests.get(requestKey);
-      controller.abort();
-      pendingRequests.delete(requestKey);
-    }
-    
-    const controller = new AbortController();
-    config.signal = controller.signal;
-    pendingRequests.set(requestKey, controller);
+    // 不再自动取消重复请求，因为这会导致ChatPage和Sidebar中的相同会话请求互相取消
+    // 让客户端自行处理重复请求的逻辑
     
     // 添加详细日志
     console.log('[请求跟踪] 即将发送请求:', {

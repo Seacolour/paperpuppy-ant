@@ -151,8 +151,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   // 刷新会话列表
   const refreshSessions = async () => {
     setIsRefreshing(true);
+    // 创建取消控制器
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+    
     try {
-      const response = await getSessionsUsingGet();
+      const response = await getSessionsUsingGet({
+        options: {
+          signal: controller.signal
+        }
+      });
+      clearTimeout(timeoutId);
+      
       const sessionList = response?.data?.data || [];
       if (sessionList && sessionList.length > 0) {
         // 保存旧ID映射关系
@@ -185,9 +195,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       } else {
         message.info('没有获取到会话');
       }
-    } catch (error) {
-      console.error('刷新会话列表失败:', error);
-      message.error('刷新会话列表失败');
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      // 检查是否是取消错误，如果是，则不显示错误提示
+      if (error.name === 'CanceledError' || error.name === 'AbortError') {
+        console.log('会话刷新请求被取消');
+      } else {
+        console.error('刷新会话列表失败:', error);
+        message.error('刷新会话列表失败');
+      }
     } finally {
       setIsRefreshing(false);
     }

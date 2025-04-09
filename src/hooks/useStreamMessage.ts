@@ -1,15 +1,26 @@
 import { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Message, addAssistantMessage, setLoading } from '../store/messageSlice';
-import { useDispatch } from 'react-redux';
+import { 
+  setLoading, 
+  updateStreamMessage 
+} from '../store/messageSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../store';
 
-// 流消息处理Hook
+/**
+ * 使用RTK Query流式更新模式的流处理钩子
+ * 根据Redux文档: https://toolkit.redux.js.cn/rtk-query/usage/streaming-updates
+ */
 export const useStreamMessage = (activeSessionId: number | null = null) => {
   const [streamContent, setStreamContent] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamIdRef = useRef<string | null>(null);
   const dispatch = useDispatch();
-
+  
+  // 用于跟踪当前活跃的流ID
+  const activeStreamId = useSelector((state: RootState) => state.messages.activeStreamId);
+  
   // 关闭当前流
   const closeStream = useCallback(() => {
     if (abortControllerRef.current) {
@@ -17,9 +28,10 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
       abortControllerRef.current = null;
     }
     setIsProcessing(false);
+    streamIdRef.current = null;
   }, []);
 
-  // 处理流式消息
+  // 处理流式消息 - 重写为使用增量更新模式
   const processStream = useCallback(async (
     url: string,
     formData: FormData,
@@ -38,12 +50,17 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
       setStreamContent('');
       setIsProcessing(true);
       
-      // 创建累积内容变量
+      // 创建流ID和累积内容变量
+      const streamId = uuidv4();
+      streamIdRef.current = streamId;
       let accumulatedContent = '';
 
       // 创建新的AbortController
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+
+      // 设置加载状态
+      dispatch(setLoading(true));
 
       // 发送请求，使用AbortController的signal
       const fetchResponse = await fetch(url, {
@@ -69,17 +86,47 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
         throw new Error('无法读取响应流');
       }
 
-      console.log('开始读取响应流...');
+      console.log('开始读取响应流...', streamId);
 
       // 使用防抖更新UI，优化渲染性能
       let timeoutId: NodeJS.Timeout | null = null;
       let lastUpdateTime = Date.now();
+      let bufferUpdates = false;
+      
+      // 内容更新函数
+      const updateContent = (content: string, isComplete = false) => {
+        // 如果流ID不再是当前流，表示已被新请求取代，直接返回
+        if (streamIdRef.current !== streamId) {
+          return;
+        }
+        
+        // 设置本地状态，用于UI实时显示
+        setStreamContent(content);
+        
+        // 更新Redux状态 - 使用增量更新模式
+        const sessionId = options?.sessionId ?? activeSessionId;
+        if (sessionId !== null) {
+          dispatch(updateStreamMessage({
+            sessionId,
+            streamId,
+            content,
+            isComplete
+          }));
+        }
+      };
+      
+      // 防抖更新UI
       const updateWithDebounce = (content: string) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
 
-        // 动态调整防抖延迟，根据内容长度和上次更新时间
+        // 如果在缓冲期，跳过UI更新，但保存最新内容供下次使用
+        if (bufferUpdates) {
+          accumulatedContent = content;
+          return;
+        }
+
         const currentTime = Date.now();
         const timeSinceLastUpdate = currentTime - lastUpdateTime;
         
@@ -95,9 +142,19 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
         const finalDelay = timeSinceLastUpdate < 50 ? dynamicDelay : baseDelay;
 
         timeoutId = setTimeout(() => {
-          setStreamContent(content);
+          updateContent(content);
           lastUpdateTime = Date.now();
           timeoutId = null;
+          
+          // 防止过于频繁的Redux更新，更新后暂时进入缓冲期
+          bufferUpdates = true;
+          setTimeout(() => {
+            bufferUpdates = false;
+            // 如果缓冲期间有新内容，立即更新
+            if (accumulatedContent !== content) {
+              updateWithDebounce(accumulatedContent);
+            }
+          }, 100); // 100ms的缓冲期
         }, finalDelay);
       };
 
@@ -156,19 +213,12 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
           processed = processed.slice(0, start) + replacement + processed.slice(end);
         }
         
-        // 输出日志
-        if (blockReplacements.length > 0 || inlineReplacements.length > 0) {
-          console.log('原始内容:', content);
-          console.log('处理后的内容:', processed);
-          console.log(`替换了${blockReplacements.length}个块级公式和${inlineReplacements.length}个行内公式`);
-        }
-        
         return processed;
       };
 
       let buffer = '';
 
-      // 模拟Swift的处理逻辑，简化流处理
+      // 处理流数据
       while (true) {
         // 检查是否已中止
         if (abortControllerRef.current !== abortController) {
@@ -215,7 +265,7 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
               }
               // 2. 处理转义字符
               extractedData = extractedData.replace(/\\n/g, '\n');  // 转换\n为实际换行符
-              extractedData = extractedData.replace(/\\\\/g, '\\'); // 转换\\为单个\、
+              extractedData = extractedData.replace(/\\\\/g, '\\'); // 转换\\为单个\
               // 处理数据格式并累积
               const finalMessagePart = processContent(extractedData);
               accumulatedContent += finalMessagePart;
@@ -257,57 +307,29 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
         timeoutId = null;
       }
       
-      // 使用微任务批量处理所有状态更新，减少重渲染
-      // 使用requestAnimationFrame确保状态更新与浏览器渲染周期同步
-      requestAnimationFrame(() => {
-        // 释放reader
-        reader.releaseLock();
-        
-        // 使用批处理更新所有状态，避免多次渲染
-        const batchUpdate = () => {
-          // 1. 如果有会话ID，添加助手消息到Redux
-          if (options?.sessionId !== undefined || activeSessionId !== null) {
-            const sessionId = options?.sessionId ?? activeSessionId;
-    
-            if (sessionId !== null) {
-              // 生成临时ID用于流式消息
-              const tempId = uuidv4();
-              
-              const assistantMessage: Message = {
-                id: uuidv4(),
-                content: accumulatedContent,
-                role: 'assistant',
-                timestamp: new Date().toISOString(),
-                // 添加重要字段
-                sessionId: sessionId,
-                tempId: tempId,
-                rawContent: accumulatedContent
-              };
-    
-              // 2. 添加消息到Redux
-              dispatch(addAssistantMessage({ sessionId, message: assistantMessage }));
-            }
-          }
-          
-          // 3. 设置加载状态为false
-          dispatch(setLoading(false));
-          
-          // 4. 重置处理状态
-          abortControllerRef.current = null;
-          setIsProcessing(false);
-          
-          // 5. 最后调用完成回调
-          if (options?.onComplete) {
-            options.onComplete(accumulatedContent);
-          }
-        };
-        
-        // 先更新流内容，然后在下一帧执行批量更新
-        setStreamContent(accumulatedContent);
-        
-        // 使用setTimeout确保UI有时间更新流内容后再执行批量更新
-        setTimeout(batchUpdate, 50);
-      });
+      // 流式传输完成，执行清理和收尾工作
+      console.log('流式传输完成，内容长度:', accumulatedContent.length);
+      
+      // 释放资源
+      reader.releaseLock();
+      
+      // 标记消息为完成状态
+      updateContent(accumulatedContent, true);
+      
+      // 执行完成回调
+      if (options?.onComplete) {
+        options.onComplete(accumulatedContent);
+      }
+      
+      // 重置处理状态和加载状态
+      setIsProcessing(false);
+      abortControllerRef.current = null;
+      streamIdRef.current = null;
+      
+      // 设置加载为false
+      setTimeout(() => {
+        dispatch(setLoading(false));
+      }, 100);
 
       return accumulatedContent;
 
@@ -319,22 +341,30 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
         options.onError(error);
       }
 
-      // 批量处理所有状态更新，减少重渲染
-      // 使用requestAnimationFrame确保状态更新与浏览器渲染周期同步
-      requestAnimationFrame(() => {
-        // 使用setTimeout确保UI有时间更新
-        setTimeout(() => {
-          abortControllerRef.current = null;
+      // 更安全的错误恢复 - 在React组件可能重新渲染前进行清理
+      const safeCleanup = () => {
+        try {
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+          }
+          streamIdRef.current = null;
+          
+          // 确保状态更新在同一个批处理中完成
           setIsProcessing(false);
           dispatch(setLoading(false));
-          setStreamContent('');
-        }, 50);
-      });
+        } catch (cleanupError) {
+          console.error('清理资源时出错:', cleanupError);
+        }
+      };
+
+      // 使用安全的方式执行清理
+      safeCleanup();
 
       // 重新抛出错误，让调用者处理
       throw error;
     }
-  }, [closeStream, dispatch, activeSessionId]);
+  }, [closeStream, dispatch, activeSessionId, activeStreamId]);
 
   // 取消当前正在处理的消息
   const cancelGeneration = useCallback(() => {
@@ -346,6 +376,7 @@ export const useStreamMessage = (activeSessionId: number | null = null) => {
     streamContent,
     isProcessing,
     processStream,
-    cancelGeneration
+    cancelGeneration,
+    activeStreamId
   };
 };
